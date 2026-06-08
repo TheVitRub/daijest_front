@@ -1548,7 +1548,7 @@ label { color: #888; }
   padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 .drawer-header {
   display: flex;
@@ -1592,6 +1592,22 @@ label { color: #888; }
   border-radius: 8px;
   background: #252525;
   padding: 14px;
+}
+.drawer-new-project {
+  min-height: 42px;
+  border: 1px solid #566173;
+  border-radius: 8px;
+  background: #334052;
+  color: #fff;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  text-align: left;
+}
+.drawer-new-project:hover {
+  background: #3c4a5f;
+  border-color: #6b7890;
 }
 .drawer-section-title {
   margin-bottom: 10px;
@@ -1744,11 +1760,18 @@ label { color: #888; }
 .projects-heading {
   margin-bottom: 10px;
 }
-.project-search {
-  margin-bottom: 10px;
+.plain-heading {
+  display: block;
 }
-.project-list {
-  max-height: 300px;
+.project-search {
+  margin-bottom: 2px;
+}
+.projects-list-section {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.projects-list-section .project-list {
+  max-height: none;
 }
 .project-item {
   position: relative;
@@ -1784,7 +1807,7 @@ label { color: #888; }
 .project-menu-layer {
   position: fixed;
   z-index: 9100;
-  width: 214px;
+  width: 252px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1798,6 +1821,9 @@ label { color: #888; }
   width: 100%;
   justify-content: flex-start;
   text-align: left;
+  min-height: 36px;
+  white-space: normal;
+  line-height: 1.25;
 }
 .project-menu-layer button:disabled {
   opacity: 0.6;
@@ -1824,6 +1850,11 @@ label { color: #888; }
   display: flex;
   flex-direction: column;
   gap: 7px;
+}
+.history-screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 .revision-item {
   min-height: 48px;
@@ -1877,6 +1908,10 @@ label { color: #888; }
   color: #aaa;
   font-size: 13px;
   line-height: 1.45;
+}
+.project-name-dialog label {
+  display: block;
+  margin-bottom: 14px;
 }
 .confirm-actions {
   display: flex;

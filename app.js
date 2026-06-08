@@ -80,6 +80,13 @@ let projectSearch = "";
 let projectMenuOpenId = "";
 let projectMenuPosition = null;
 let confirmDialog = null;
+let newProjectDialogOpen = false;
+let newProjectTitle = "";
+let historyProjectId = "";
+let historyRevisions = [];
+let historyLoading = false;
+let importTargetProjectId = "";
+let pendingImport = null;
 let renamingProjectId = "";
 let renameDraft = "";
 let revisionPreview = null;
@@ -218,6 +225,13 @@ function projectTitle() {
 }
 function currentRemoteDigest() {
   return remoteDigests.find(d => d.id === currentDigestId) || null;
+}
+function projectById(projectId) {
+  return remoteDigests.find(d => d.id === projectId) || null;
+}
+function projectTitleById(projectId) {
+  const project = projectById(projectId);
+  return (project?.title || (projectId === currentDigestId ? projectTitle() : "Новый проект")).trim() || "Новый проект";
 }
 function currentVersion() {
   const current = currentRemoteDigest();
@@ -378,6 +392,13 @@ function logoutAccount() {
   projectMenuOpenId = "";
   projectMenuPosition = null;
   confirmDialog = null;
+  newProjectDialogOpen = false;
+  newProjectTitle = "";
+  historyProjectId = "";
+  historyRevisions = [];
+  historyLoading = false;
+  importTargetProjectId = "";
+  pendingImport = null;
   revisionPreview = null;
   clearTimeout(remoteSaveTimer);
   safeStorageRemove(AUTH_TOKEN_KEY);
@@ -418,6 +439,16 @@ async function loadRemoteDigests(createIfEmpty) {
   }
   renderAccountBar();
 }
+async function refreshProjectListOnly() {
+  if (!authToken) return;
+  const data = await apiRequest("/digests");
+  remoteDigests = data.digests || [];
+  if (currentDigestId && !remoteDigests.some(d => d.id === currentDigestId)) {
+    currentDigestId = remoteDigests[0]?.id || "";
+    if (currentDigestId) safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
+  }
+  renderAccountBar();
+}
 async function createRemoteDigest(action) {
   if (!authToken) return null;
   const title = projectTitle();
@@ -434,16 +465,42 @@ async function createRemoteDigest(action) {
   await loadRemoteDigests(false);
   return data.digest;
 }
-async function newRemoteDigest() {
+async function newRemoteDigest(title) {
+  if (projectDirty && currentDigestId && !revisionPreview) {
+    await saveRemoteDraft("before new project", true);
+  }
   clearTimeout(remoteSaveTimer);
   resetStateToInitial();
   currentDigestId = "";
-  currentProjectTitle = "Новый проект";
+  currentProjectTitle = (title || "Новый проект").trim() || "Новый проект";
   render(false);
   rememberSnapshot(captureState());
   saveLocalDraft();
   await createRemoteDigest("created");
   setSaveStatus("Создан новый проект");
+}
+function openNewProjectDialog() {
+  newProjectDialogOpen = true;
+  newProjectTitle = "Новый проект";
+  closeProjectMenu();
+  renderAccountBar();
+}
+function closeNewProjectDialog() {
+  newProjectDialogOpen = false;
+  newProjectTitle = "";
+  renderAccountBar();
+}
+async function createProjectFromDialog() {
+  const title = (newProjectTitle || "").trim() || "Новый проект";
+  newProjectDialogOpen = false;
+  newProjectTitle = "";
+  try {
+    await newRemoteDigest(title);
+  } catch (err) {
+    console.error("Project create failed:", err);
+    setSaveStatus("Ошибка создания проекта");
+    renderAccountBar();
+  }
 }
 async function saveRemoteNow() {
   try {
@@ -452,6 +509,14 @@ async function saveRemoteNow() {
     console.error("Manual save error:", err);
     setSaveStatus("Ошибка сохранения");
   }
+}
+async function saveCurrentProjectFromMenu() {
+  closeProjectMenu();
+  await saveRemoteNow();
+}
+function toggleAutosaveFromMenu() {
+  closeProjectMenu();
+  toggleAutosave();
 }
 function scheduleRemoteAutosave(action) {
   if (revisionPreview) {
@@ -551,11 +616,40 @@ async function loadRemoteDigest(digestId, quiet) {
 async function refreshRemoteRevisions() {
   if (!authToken || !currentDigestId) {
     remoteRevisions = [];
+    if (historyProjectId === currentDigestId) historyRevisions = [];
     renderAccountBar();
     return;
   }
   const data = await apiRequest("/digests/" + currentDigestId + "/revisions");
   remoteRevisions = data.revisions || [];
+  if (historyProjectId === currentDigestId) historyRevisions = remoteRevisions.slice();
+  renderAccountBar();
+}
+async function openProjectHistory(projectId) {
+  if (!authToken || !projectId) return;
+  historyProjectId = projectId;
+  historyRevisions = [];
+  historyLoading = true;
+  closeProjectMenu();
+  renderAccountBar();
+  try {
+    const data = await apiRequest("/digests/" + projectId + "/revisions");
+    historyRevisions = data.revisions || [];
+  } catch (err) {
+    console.error("Revision history load failed:", err);
+    setSaveStatus("Ошибка истории версий");
+  } finally {
+    historyLoading = false;
+    renderAccountBar();
+  }
+}
+async function closeProjectHistory() {
+  if (revisionPreview) {
+    await returnToCurrentRevision();
+  }
+  historyProjectId = "";
+  historyRevisions = [];
+  historyLoading = false;
   renderAccountBar();
 }
 async function rollbackRemoteRevision() {
@@ -609,12 +703,24 @@ function openProjectsPanel() {
   projectsPanelOpen = true;
   projectMenuOpenId = "";
   projectMenuPosition = null;
+  historyProjectId = "";
+  historyRevisions = [];
+  historyLoading = false;
   renderAccountBar();
 }
-function closeProjectsPanel() {
+async function closeProjectsPanel() {
+  if (revisionPreview) {
+    await returnToCurrentRevision();
+  }
   projectsPanelOpen = false;
   projectMenuOpenId = "";
   projectMenuPosition = null;
+  historyProjectId = "";
+  historyRevisions = [];
+  historyLoading = false;
+  newProjectDialogOpen = false;
+  importTargetProjectId = "";
+  pendingImport = null;
   confirmDialog = null;
   renderAccountBar();
 }
@@ -673,7 +779,29 @@ async function finishRenameProject() {
   const nextTitle = (renameDraft || "").trim() || "Новый проект";
   if (!renamingProjectId) return;
   if (renamingProjectId !== currentDigestId) {
-    await openProject(renamingProjectId);
+    const targetId = renamingProjectId;
+    try {
+      const data = await apiRequest("/digests/" + targetId);
+      await apiRequest("/digests/" + targetId + "/autosave", {
+        method: "PUT",
+        body: JSON.stringify({ title: nextTitle, state: data.digest.state, action: "renamed" })
+      });
+      const target = projectById(targetId);
+      if (target) {
+        target.title = nextTitle;
+        target.updatedAt = new Date().toISOString();
+        target.currentVersion = (target.currentVersion || 1) + 1;
+      }
+      renamingProjectId = "";
+      renameDraft = "";
+      await refreshProjectListOnly();
+      setSaveStatus("Проект переименован");
+    } catch (err) {
+      console.error("Project rename failed:", err);
+      setSaveStatus("Ошибка переименования");
+      renderAccountBar();
+    }
+    return;
   }
   currentProjectTitle = nextTitle;
   const current = currentRemoteDigest();
@@ -689,6 +817,10 @@ function openConfirmDialog(config) {
   renderAccountBar();
 }
 function closeConfirmDialog() {
+  if (confirmDialog?.clearPendingImport) {
+    pendingImport = null;
+    importTargetProjectId = "";
+  }
   confirmDialog = null;
   renderAccountBar();
 }
@@ -748,6 +880,7 @@ async function deleteProject(projectId) {
 function confirmDeleteProject(projectId) {
   const digest = remoteDigests.find(d => d.id === projectId) || currentRemoteDigest();
   const title = digest?.title || "Новый проект";
+  closeProjectMenu();
   openConfirmDialog({
     title: `Удалить проект "${title}"?`,
     message: "Это действие нельзя отменить.",
@@ -774,15 +907,29 @@ function confirmClearCurrentProject() {
     onConfirm: clearCurrentProject
   });
 }
-async function openRevisionPreview(revisionId) {
-  if (!authToken || !currentDigestId || !revisionId) return;
+async function openRevisionPreview(projectId, revisionId) {
+  if (!revisionId) {
+    revisionId = projectId;
+    projectId = currentDigestId;
+  }
+  if (!authToken || !projectId || !revisionId) return;
   try {
-    if (projectDirty && !revisionPreview) {
+    if (projectDirty && !revisionPreview && currentDigestId) {
       await saveRemoteDraft("before revision preview", true);
     }
-    const data = await apiRequest("/digests/" + currentDigestId + "/revisions/" + revisionId);
+    if (projectId !== currentDigestId) {
+      const projectData = await apiRequest("/digests/" + projectId);
+      currentDigestId = projectData.digest.id;
+      safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
+      currentProjectTitle = projectData.digest.title || "Новый проект";
+      lastRemoteSnapshot = JSON.stringify(projectData.digest.state || {});
+      lastRemoteTitle = currentProjectTitle;
+      projectDirty = false;
+    }
+    const data = await apiRequest("/digests/" + projectId + "/revisions/" + revisionId);
     revisionPreview = {
       id: data.revision.id,
+      projectId,
       version: data.revision.version,
       action: data.revision.action || "",
       createdAt: data.revision.createdAt || ""
@@ -790,6 +937,7 @@ async function openRevisionPreview(revisionId) {
     loadState(data.revision.state);
     render(false);
     setSaveStatus("Просмотр v" + data.revision.version);
+    await refreshRemoteRevisions();
   } catch (err) {
     console.error("Revision preview failed:", err);
     setSaveStatus("Ошибка версии");
@@ -800,13 +948,21 @@ async function returnToCurrentRevision() {
   revisionPreview = null;
   await loadRemoteDigest(currentDigestId, false);
 }
-async function rollbackRevision(revisionId, version) {
-  if (!revisionId || !currentDigestId) return;
-  if (!revisionPreview && projectDirty) {
+async function rollbackRevision(projectId, revisionId, version) {
+  if (!version) {
+    version = revisionId;
+    revisionId = projectId;
+    projectId = currentDigestId;
+  }
+  if (!projectId || !revisionId) return;
+  if (!revisionPreview && projectDirty && currentDigestId) {
     await saveRemoteDraft("before rollback", true);
   }
   try {
-    const data = await apiRequest("/digests/" + currentDigestId + "/rollback", {
+    if (projectId !== currentDigestId) {
+      await loadRemoteDigest(projectId, false);
+    }
+    const data = await apiRequest("/digests/" + projectId + "/rollback", {
       method: "POST",
       body: JSON.stringify({ revisionId })
     });
@@ -820,19 +976,28 @@ async function rollbackRevision(revisionId, version) {
     saveLocalDraft();
     render(false);
     await refreshRemoteRevisions();
+    if (historyProjectId === projectId) {
+      const history = await apiRequest("/digests/" + projectId + "/revisions");
+      historyRevisions = history.revisions || [];
+    }
     setSaveStatus("Откат к v" + (version || data.digest.currentVersion));
   } catch (err) {
     console.error("Rollback failed:", err);
     setSaveStatus("Ошибка отката");
   }
 }
-function confirmRollbackRevision(revisionId, version) {
+function confirmRollbackRevision(projectId, revisionId, version) {
+  if (!version) {
+    version = revisionId;
+    revisionId = projectId;
+    projectId = currentDigestId;
+  }
   openConfirmDialog({
     title: "Откатить проект к версии v" + version + "?",
     message: "Текущая версия будет сохранена перед откатом.",
     confirmText: "Откатить",
     danger: false,
-    onConfirm: () => rollbackRevision(revisionId, version)
+    onConfirm: () => rollbackRevision(projectId, revisionId, version)
   });
 }
 
@@ -1541,7 +1706,7 @@ function renderProjectList() {
                 <button type="button" onclick="cancelRenameProject()">Отмена</button>
               </div>` : `
               <span class="project-item-title">${escText(title)}</span>
-              <span class="project-item-meta">Изменен: ${escText(updated)} · Версий: ${d.currentVersion || 1}</span>`}
+              <span class="project-item-meta">Изменен: ${escText(updated)}</span>`}
           </div>
           <div class="project-item-actions">
             ${active ? `<span class="project-opened">Открыт</span>` : `<button type="button" onclick="openProject('${escAttr(d.id)}')">Открыть</button>`}
@@ -1563,21 +1728,28 @@ function renderProjectMenu() {
     <div class="project-menu-layer" style="top:${top}px;right:${right}px" onclick="event.stopPropagation()">
       ${active ? `<button type="button" disabled>Открыт</button>` : `<button type="button" onclick="openProject('${id}')">Открыть</button>`}
       <button type="button" onclick="startRenameProject('${id}')">Переименовать</button>
-      <button type="button" onclick="duplicateProject('${id}')">Дублировать</button>
+      ${active ? `<button type="button" onclick="saveCurrentProjectFromMenu()">Сохранить сейчас</button>` : ""}
+      ${active ? `<button type="button" onclick="toggleAutosaveFromMenu()">Автосохранение: ${autosaveEnabled ? "включено" : "выключено"}</button>` : ""}
       <button type="button" onclick="exportProjectJSON('${id}')">Экспортировать JSON</button>
+      <button type="button" onclick="importJSON('${id}')">Импорт JSON в этот проект</button>
+      <button type="button" onclick="openProjectHistory('${id}')">История версий</button>
       <button type="button" class="danger-text" onclick="confirmDeleteProject('${id}')">Удалить</button>
     </div>`;
 }
 
-function renderRevisionHistory() {
-  if (!remoteRevisions.length) {
+function renderRevisionHistory(projectId, revisions) {
+  const list = revisions || remoteRevisions;
+  if (!list.length) {
     return `<div class="panel-empty-line">Версий пока нет.</div>`;
   }
-  return remoteRevisions
+  return list
     .slice()
     .sort((a, b) => (b.version || 0) - (a.version || 0))
     .map(revision => {
-      const isCurrent = !revisionPreview && revision.version === currentVersion();
+      const activeProject = projectId || currentDigestId;
+      const digest = projectById(activeProject);
+      const currentProjectVersion = activeProject === currentDigestId ? currentVersion() : (digest?.currentVersion || 0);
+      const isCurrent = !revisionPreview && revision.version === currentProjectVersion;
       const isPreview = revisionPreview && revisionPreview.id === revision.id;
       return `
         <div class="revision-item ${isCurrent || isPreview ? "active" : ""}">
@@ -1586,8 +1758,8 @@ function renderRevisionHistory() {
             <span>${escText(formatProjectDate(revision.createdAt))}${isCurrent ? " · текущая" : ""}${isPreview ? " · просмотр" : ""}</span>
           </div>
           <div class="revision-actions">
-            ${isCurrent ? `<span class="project-opened">Текущая</span>` : `<button type="button" onclick="openRevisionPreview('${escAttr(revision.id)}')">Открыть</button>`}
-            ${isCurrent ? "" : `<button type="button" onclick="confirmRollbackRevision('${escAttr(revision.id)}', ${revision.version})">Откатить</button>`}
+            ${isCurrent ? `<span class="project-opened">Текущая</span>` : `<button type="button" onclick="openRevisionPreview('${escAttr(activeProject)}', '${escAttr(revision.id)}')">Открыть</button>`}
+            ${isCurrent ? "" : `<button type="button" onclick="confirmRollbackRevision('${escAttr(activeProject)}', '${escAttr(revision.id)}', ${revision.version})">Откатить</button>`}
           </div>
         </div>`;
     }).join("");
@@ -1608,90 +1780,73 @@ function renderConfirmDialog() {
     </div>`;
 }
 
+function renderNewProjectDialog() {
+  if (!newProjectDialogOpen) return "";
+  return `
+    <div class="confirm-backdrop" onclick="closeNewProjectDialog()">
+      <form class="confirm-dialog project-name-dialog" onclick="event.stopPropagation()" onsubmit="event.preventDefault();createProjectFromDialog()">
+        <h3>Название проекта</h3>
+        <label>
+          <input class="drawer-title-input" value="${escAttr(newProjectTitle)}" oninput="newProjectTitle=this.value" placeholder="Новый проект" autofocus>
+        </label>
+        <div class="confirm-actions">
+          <button type="button" onclick="closeNewProjectDialog()">Отмена</button>
+          <button type="submit" class="primary-action">Создать</button>
+        </div>
+      </form>
+    </div>`;
+}
+
 function renderProjectsDrawer() {
   if (!projectsPanelOpen) return "";
-  const current = currentRemoteDigest();
-  const title = projectTitle();
-  const updated = current ? formatProjectDate(current.updatedAt || current.createdAt) : "без даты";
-  const currentIsRenaming = renamingProjectId === currentDigestId;
+  const historyProject = historyProjectId ? projectById(historyProjectId) : null;
+  if (historyProjectId) {
+    return `
+      <div class="projects-drawer-backdrop" onclick="closeProjectsPanel()">
+        <aside class="projects-drawer" onclick="handleProjectsDrawerClick(event)">
+          <header class="drawer-header">
+            <div>
+              <h2>История версий</h2>
+              <p>${escText(historyProject?.title || "Новый проект")}</p>
+            </div>
+            <button type="button" class="drawer-close" onclick="closeProjectHistory()">Назад</button>
+          </header>
+          <section class="drawer-section history-screen">
+            ${revisionPreview && revisionPreview.projectId === historyProjectId ? `
+              <div class="revision-preview-banner">
+                <strong>Просмотр v${revisionPreview.version}</strong>
+                <span>Редактирование и автосохранение временно выключены.</span>
+                <div class="drawer-action-row">
+                  <button type="button" onclick="returnToCurrentRevision()">Вернуться к текущей</button>
+                  <button type="button" class="primary-action" onclick="confirmRollbackRevision('${escAttr(historyProjectId)}', '${escAttr(revisionPreview.id)}', ${revisionPreview.version})">Откатить</button>
+                </div>
+              </div>` : ""}
+            ${historyLoading ? `<div class="panel-empty-line">Загружаем версии...</div>` : `<div class="revision-list">${renderRevisionHistory(historyProjectId, historyRevisions)}</div>`}
+          </section>
+          <div id="projectMenuLayerHost">${renderProjectMenu()}</div>
+        </aside>
+      </div>`;
+  }
+
   return `
     <div class="projects-drawer-backdrop" onclick="closeProjectsPanel()">
       <aside class="projects-drawer" onclick="handleProjectsDrawerClick(event)">
         <header class="drawer-header">
           <div>
             <h2>Проекты</h2>
-            <p>Проекты хранятся в вашем аккаунте. Другие пользователи не могут видеть, открывать или изменять ваши проекты.</p>
-            <span>Аккаунт: ${escText(currentUser.email || "")}</span>
+            <p>Проекты доступны только вашему аккаунту.</p>
           </div>
           <button type="button" class="drawer-close" onclick="closeProjectsPanel()">Закрыть</button>
         </header>
 
-        <section class="drawer-section current-project-section">
-          <div class="drawer-section-title">Текущий проект</div>
-          ${currentIsRenaming ? `
-            <input class="drawer-title-input" value="${escAttr(renameDraft)}" oninput="renameDraft=this.value" onkeydown="if(event.key==='Enter')finishRenameProject();if(event.key==='Escape')cancelRenameProject()">
-            <div class="drawer-action-row">
-              <button type="button" class="primary-action" onclick="finishRenameProject()">Готово</button>
-              <button type="button" onclick="cancelRenameProject()">Отмена</button>
-            </div>` : `
-            <h3>${escText(title)}</h3>`}
-          <div class="drawer-status-grid">
-            <span>Статус</span><strong id="drawerSaveStatusPill" class="save-dot ${saveStatusClass()}"><span id="drawerSaveStatusText">${escText(saveStatusSummary())}</span></strong>
-            <span>Последнее сохранение</span><strong>${escText(updated)}</strong>
-            <span>Автосохранение</span>
-            <label class="switch-control">
-              <input id="autosaveToggle" type="checkbox" ${autosaveEnabled ? "checked" : ""} onchange="toggleAutosave()" ${revisionPreview ? "disabled" : ""}>
-              <span></span>
-            </label>
-          </div>
-          ${revisionPreview ? `
-            <div class="revision-preview-banner">
-              <strong>Просмотр v${revisionPreview.version}</strong>
-              <span>Редактирование и автосохранение временно выключены.</span>
-              <div class="drawer-action-row">
-                <button type="button" onclick="returnToCurrentRevision()">Вернуться к текущей</button>
-                <button type="button" class="primary-action" onclick="confirmRollbackRevision('${escAttr(revisionPreview.id)}', ${revisionPreview.version})">Откатить</button>
-              </div>
-            </div>` : ""}
-          <div class="drawer-action-row">
-            <button id="manualSaveBtn" type="button" class="primary-action" onclick="saveRemoteNow()" ${savingRemote || revisionPreview ? "disabled" : ""}>Сохранить сейчас</button>
-            <button type="button" onclick="startRenameProject('${escAttr(currentDigestId)}')" ${revisionPreview ? "disabled" : ""}>Переименовать</button>
-            <button type="button" onclick="newRemoteDigest()">Создать новый проект</button>
-          </div>
-          <div class="drawer-action-row subtle-actions">
-            <button type="button" onclick="undoAction()" ${localHistory.length <= 1 || revisionPreview ? "disabled" : ""}>Назад</button>
-            <button type="button" onclick="redoAction()" ${redoHistory.length && !revisionPreview ? "" : "disabled"}>Вперед</button>
-          </div>
-        </section>
+        <button type="button" class="drawer-new-project" onclick="openNewProjectDialog()">+ Новый проект</button>
+        <input class="project-search" type="search" placeholder="Поиск проекта..." value="${escAttr(projectSearch)}" oninput="setProjectSearch(this.value)">
 
-        <section class="drawer-section">
-          <div class="projects-heading">
+        <section class="drawer-section projects-list-section">
+          <div class="projects-heading plain-heading">
             <span>Мои проекты</span>
-            <button type="button" onclick="newRemoteDigest()">+ Новый проект</button>
           </div>
-          <input class="project-search" type="search" placeholder="Поиск проекта..." value="${escAttr(projectSearch)}" oninput="setProjectSearch(this.value)">
           <div id="projectList" class="project-list">${renderProjectList()}</div>
-        </section>
-
-        <section class="drawer-section">
-          <div class="drawer-section-title">История версий</div>
-          <div class="revision-list">${renderRevisionHistory()}</div>
-        </section>
-
-        <section class="drawer-section compact-section">
-          <div class="drawer-section-title">Дополнительно</div>
-          <div class="drawer-action-row">
-            <button type="button" onclick="importJSON()">Импорт JSON</button>
-            <button type="button" onclick="exportProjectJSON('${escAttr(currentDigestId)}')">Экспорт текущего проекта</button>
-          </div>
-        </section>
-
-        <section class="drawer-section danger-zone">
-          <div class="drawer-section-title">Опасная зона</div>
-          <div class="drawer-action-row">
-            <button type="button" onclick="confirmClearCurrentProject()">Очистить текущий проект</button>
-            <button type="button" onclick="confirmDeleteProject('${escAttr(currentDigestId)}')">Удалить проект</button>
-          </div>
         </section>
         <div id="projectMenuLayerHost">${renderProjectMenu()}</div>
       </aside>
@@ -1724,6 +1879,7 @@ function renderAccountBar() {
       <button type="button" class="projects-open-button" onclick="openProjectsPanel()">Проекты</button>
     </section>
     ${renderProjectsDrawer()}
+    ${renderNewProjectDialog()}
     ${renderConfirmDialog()}`;
 }
 
@@ -1744,6 +1900,7 @@ function exportJSON() {
   exportProjectJSON(currentDigestId);
 }
 async function exportProjectJSON(projectId) {
+  closeProjectMenu();
   let title = projectTitle();
   let exportedState = state;
   if (authToken && projectId && projectId !== currentDigestId) {
@@ -1765,7 +1922,56 @@ async function exportProjectJSON(projectId) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
-function importJSON() { document.getElementById("fileInput").click(); }
+function importJSON(projectId) {
+  importTargetProjectId = projectId || currentDigestId;
+  pendingImport = null;
+  closeProjectMenu();
+  document.getElementById("fileInput").click();
+}
+async function saveProjectBackup(projectId, title, projectState) {
+  await apiRequest("/digests/" + projectId + "/autosave", {
+    method: "PUT",
+    body: JSON.stringify({ title, state: projectState, action: "backup before import" })
+  });
+}
+async function performProjectImport() {
+  if (!pendingImport || !importTargetProjectId) return;
+  const targetId = importTargetProjectId;
+  const targetTitle = projectTitleById(targetId);
+  const nextState = pendingImport.state;
+  pendingImport = null;
+  importTargetProjectId = "";
+  try {
+    if (targetId === currentDigestId) {
+      await saveProjectBackup(targetId, targetTitle, state);
+      loadState(nextState);
+      currentProjectTitle = targetTitle;
+      render(false);
+      rememberSnapshot(captureState());
+      saveLocalDraft();
+      projectDirty = true;
+      await saveRemoteDraft("json import", true);
+      await loadRemoteDigests(false);
+      setSaveStatus("JSON импортирован");
+      return;
+    }
+
+    const data = await apiRequest("/digests/" + targetId);
+    const title = data.digest.title || targetTitle;
+    await saveProjectBackup(targetId, title, data.digest.state);
+    await apiRequest("/digests/" + targetId + "/autosave", {
+      method: "PUT",
+      body: JSON.stringify({ title, state: nextState, action: "json import" })
+    });
+    await refreshProjectListOnly();
+    setSaveStatus("JSON импортирован в проект");
+  } catch (err) {
+    console.error("JSON project import error:", err);
+    setSaveStatus("Ошибка импорта JSON");
+  } finally {
+    renderAccountBar();
+  }
+}
 document.getElementById("fileInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   e.target.value = '';
@@ -1773,31 +1979,31 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
   try {
     const data = JSON.parse(await file.text());
     const nextState = importedState(data);
-    loadState(nextState);
-    currentProjectTitle = (data.title || nextState?.letter?.title || "Импортированный проект").trim() || "Импортированный проект";
-    render(false);
-    rememberSnapshot(captureState());
-    saveLocalDraft();
-    projectDirty = true;
-    if (authToken) {
-      const imported = await apiRequest("/digests/import", {
-        method: "POST",
-        body: JSON.stringify({ title: currentProjectTitle, state })
-      });
-      currentDigestId = imported.digest.id;
-      currentProjectTitle = imported.digest.title || currentProjectTitle;
-      safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
-      lastRemoteSnapshot = captureState();
-      lastRemoteTitle = currentProjectTitle;
-      projectDirty = false;
-      await loadRemoteDigests(false);
-      setSaveStatus("Импортирован v" + imported.digest.currentVersion);
-    } else {
+    if (!authToken || !importTargetProjectId) {
+      loadState(nextState);
+      currentProjectTitle = (data.title || nextState?.letter?.title || "Импортированный проект").trim() || "Импортированный проект";
+      render(false);
+      rememberSnapshot(captureState());
+      saveLocalDraft();
+      projectDirty = true;
       setSaveStatus("JSON загружен локально");
       renderAccountBar();
+      return;
     }
+    pendingImport = { state: nextState };
+    const targetTitle = projectTitleById(importTargetProjectId);
+    openConfirmDialog({
+      title: `Импортировать данные в проект "${targetTitle}"?`,
+      message: "Текущие данные проекта будут заменены. Перед импортом будет создана резервная версия.",
+      confirmText: "Импортировать",
+      danger: false,
+      clearPendingImport: true,
+      onConfirm: performProjectImport
+    });
   } catch(err) {
     console.error("JSON import error:", err);
+    pendingImport = null;
+    importTargetProjectId = "";
     setSaveStatus("Ошибка импорта JSON");
   }
 });

@@ -19,13 +19,14 @@ const LOGO_DATA = {
 const STORAGE_KEY = "digest-builder-draft-v2";
 const AUTH_TOKEN_KEY = "digest-builder-auth-token-v1";
 const CURRENT_DIGEST_KEY = "digest-builder-current-digest-v1";
+const AUTOSAVE_ENABLED_KEY = "digest-builder-autosave-enabled-v1";
 const PUBLIC_BASE_PATH =
   window.DJST_PUBLIC_BASE_PATH ||
   (window.location.pathname === "/daijest" || window.location.pathname.startsWith("/daijest/")
     ? "/daijest"
     : "");
 const API_BASE = window.DJST_API_BASE || `${PUBLIC_BASE_PATH}/api`;
-const AUTOSAVE_DELAY_MS = 900;
+const AUTOSAVE_DELAY_MS = 5000;
 const HISTORY_LIMIT = 60;
 
 const COMPANIES = [
@@ -58,6 +59,7 @@ const state = {
   },
   companies: COMPANIES.map(c => ({ key: c.key, collapsed: true, blocks: [] }))
 };
+const INITIAL_STATE_SNAPSHOT = JSON.stringify(state);
 
 let authToken = safeStorageGet(AUTH_TOKEN_KEY) || "";
 let currentUser = null;
@@ -66,7 +68,16 @@ let remoteDigests = [];
 let remoteRevisions = [];
 let remoteSaveTimer = null;
 let lastRemoteSnapshot = "";
+let lastRemoteTitle = "";
+let currentProjectTitle = "";
 let saveStatus = "";
+let authMode = "login";
+let authError = "";
+let authBusy = false;
+let authDraft = { email: "", name: "", password: "", confirm: "" };
+let autosaveEnabled = safeStorageGet(AUTOSAVE_ENABLED_KEY) !== "false";
+let projectDirty = false;
+let savingRemote = false;
 let booting = true;
 let localHistory = [];
 let redoHistory = [];
@@ -93,7 +104,7 @@ function safeStorageRemove(key) {
   try { localStorage.removeItem(key); } catch (_) {}
 }
 function stateEnvelope() {
-  return { schemaVersion: 1, exportedAt: new Date().toISOString(), state };
+  return { schemaVersion: 1, exportedAt: new Date().toISOString(), title: projectTitle(), state };
 }
 function importedState(data) {
   if (data && data.schemaVersion && data.state) return data.state;
@@ -111,6 +122,7 @@ function loadLocalDraft() {
   try {
     const data = JSON.parse(raw);
     loadState(importedState(data));
+    if (data && typeof data.title === "string") currentProjectTitle = data.title;
     return true;
   } catch (_) {
     return false;
@@ -151,6 +163,7 @@ function afterStateChanged(action) {
   const snapshot = captureState();
   rememberSnapshot(snapshot);
   saveLocalDraft();
+  projectDirty = true;
   scheduleRemoteAutosave(action || "autosave");
   renderAccountBar();
 }
@@ -182,11 +195,55 @@ function loadState(data) {
 }
 
 function digestTitle() {
-  return (state.letter && state.letter.title ? state.letter.title : "Digest").trim() || "Digest";
+  return (state.letter && state.letter.title ? state.letter.title : "Новый проект").trim() || "Новый проект";
+}
+function resetStateToInitial() {
+  loadState(JSON.parse(INITIAL_STATE_SNAPSHOT));
+}
+function projectTitle() {
+  return (currentProjectTitle || digestTitle()).trim() || "Новый проект";
+}
+function currentRemoteDigest() {
+  return remoteDigests.find(d => d.id === currentDigestId) || null;
+}
+function currentVersion() {
+  const current = currentRemoteDigest();
+  return current?.currentVersion || remoteRevisions[0]?.version || 1;
+}
+function formatProjectDate(value) {
+  if (!value) return "без даты";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "без даты";
+  return date.toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+function safeFileTitle(value) {
+  return (value || "project").trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 80) || "project";
+}
+function saveStatusClass() {
+  if (/ошибка/i.test(saveStatus)) return "error";
+  if (/сохранение/i.test(saveStatus)) return "saving";
+  if (/изменения|выключено/i.test(saveStatus)) return "dirty";
+  return "saved";
+}
+function renderSaveStatusOnly() {
+  const statusEl = document.getElementById("saveStatusText");
+  if (statusEl) statusEl.textContent = saveStatus || (autosaveEnabled ? "Сохранено" : "Автосохранение выключено");
+  const pill = document.getElementById("saveStatusPill");
+  if (pill) pill.className = "save-status " + saveStatusClass();
+  const saveBtn = document.getElementById("manualSaveBtn");
+  if (saveBtn) saveBtn.disabled = savingRemote;
+  const autosaveToggle = document.getElementById("autosaveToggle");
+  if (autosaveToggle) autosaveToggle.checked = autosaveEnabled;
+}
+function renderShellState() {
+  const authScreen = document.getElementById("authScreen");
+  const app = document.querySelector(".app");
+  if (authScreen) authScreen.hidden = !!currentUser;
+  if (app) app.classList.toggle("app-hidden", !currentUser);
 }
 function setSaveStatus(text) {
   saveStatus = text || "";
-  renderAccountBar();
+  renderSaveStatusOnly();
 }
 async function apiRequest(path, options = {}) {
   const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
@@ -200,39 +257,73 @@ async function apiRequest(path, options = {}) {
 function setAuthSession(data) {
   authToken = data.token || "";
   currentUser = data.user || null;
+  authError = "";
   if (authToken) safeStorageSet(AUTH_TOKEN_KEY, authToken);
+  renderAuthScreen();
   renderAccountBar();
+  renderShellState();
 }
-async function registerAccount() {
+
+function setAuthMode(mode) {
+  authMode = mode === "register" ? "register" : "login";
+  authError = "";
+  renderAuthScreen();
+}
+function authErrorMessage(message) {
+  if (/invalid email or password/i.test(message)) return "Неверный email или пароль.";
+  if (/already registered/i.test(message)) return "Такой email уже зарегистрирован.";
+  if (/at least 8/i.test(message)) return "Пароль должен быть не короче 8 символов.";
+  return message || "Не удалось выполнить запрос.";
+}
+function validateAuthForm(email, password, confirm) {
+  if (!email.trim() || !email.includes("@")) return "Введите корректный email.";
+  if (password.length < 8) return "Пароль должен быть не короче 8 символов.";
+  if (authMode === "register" && password !== confirm) return "Пароли не совпадают.";
+  return "";
+}
+async function submitAuthForm(event) {
+  if (event) event.preventDefault();
+  if (authBusy) return;
   const email = document.getElementById("authEmail")?.value || "";
   const name = document.getElementById("authName")?.value || "";
   const password = document.getElementById("authPassword")?.value || "";
+  const confirm = document.getElementById("authPasswordConfirm")?.value || "";
+  authDraft = { email, name, password, confirm };
+  const validationError = validateAuthForm(email, password, confirm);
+  if (validationError) {
+    authError = validationError;
+    renderAuthScreen();
+    return;
+  }
+
+  authBusy = true;
+  authError = "";
+  renderAuthScreen();
   try {
-    const data = await apiRequest("/auth/register", {
+    const path = authMode === "register" ? "/auth/register" : "/auth/login";
+    const body = authMode === "register" ? { email, name, password } : { email, password };
+    const data = await apiRequest(path, {
       method: "POST",
-      body: JSON.stringify({ email, name, password })
+      body: JSON.stringify(body)
     });
     setAuthSession(data);
     await loadRemoteDigests(true);
-    setSaveStatus("Account created");
+    setSaveStatus(authMode === "register" ? "Аккаунт создан" : "Проекты загружены");
   } catch (err) {
-    alert("Registration failed: " + err.message);
+    authError = authErrorMessage(err.message);
+    renderAuthScreen();
+  } finally {
+    authBusy = false;
+    renderAuthScreen();
   }
 }
+async function registerAccount() {
+  authMode = "register";
+  await submitAuthForm();
+}
 async function loginAccount() {
-  const email = document.getElementById("authEmail")?.value || "";
-  const password = document.getElementById("authPassword")?.value || "";
-  try {
-    const data = await apiRequest("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    });
-    setAuthSession(data);
-    await loadRemoteDigests(false);
-    setSaveStatus("Signed in");
-  } catch (err) {
-    alert("Login failed: " + err.message);
-  }
+  authMode = "login";
+  await submitAuthForm();
 }
 function logoutAccount() {
   authToken = "";
@@ -241,16 +332,28 @@ function logoutAccount() {
   remoteDigests = [];
   remoteRevisions = [];
   lastRemoteSnapshot = "";
+  lastRemoteTitle = "";
+  currentProjectTitle = "";
+  projectDirty = false;
+  savingRemote = false;
+  clearTimeout(remoteSaveTimer);
   safeStorageRemove(AUTH_TOKEN_KEY);
   safeStorageRemove(CURRENT_DIGEST_KEY);
+  renderAuthScreen();
   renderAccountBar();
+  renderShellState();
 }
 async function bootstrapRemoteSession() {
-  if (!authToken) { renderAccountBar(); return; }
+  if (!authToken) {
+    renderAuthScreen();
+    renderAccountBar();
+    renderShellState();
+    return;
+  }
   try {
     const data = await apiRequest("/me");
     currentUser = data.user;
-    await loadRemoteDigests(false);
+    await loadRemoteDigests(true);
   } catch (_) {
     logoutAccount();
   }
@@ -262,7 +365,8 @@ async function loadRemoteDigests(createIfEmpty) {
   const known = remoteDigests.some(d => d.id === currentDigestId);
   if (!known) currentDigestId = remoteDigests[0]?.id || "";
   if (!currentDigestId && createIfEmpty) {
-    await createRemoteDigest();
+    currentProjectTitle = "Новый проект";
+    await createRemoteDigest("created");
     return;
   }
   if (currentDigestId) {
@@ -271,65 +375,101 @@ async function loadRemoteDigests(createIfEmpty) {
   }
   renderAccountBar();
 }
-async function createRemoteDigest() {
+async function createRemoteDigest(action) {
   if (!authToken) return null;
+  const title = projectTitle();
   const data = await apiRequest("/digests", {
     method: "POST",
-    body: JSON.stringify({ title: digestTitle(), state, action: "created" })
+    body: JSON.stringify({ title, state, action: action || "created" })
   });
   currentDigestId = data.digest.id;
+  currentProjectTitle = data.digest.title || title;
   safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
   lastRemoteSnapshot = captureState();
+  lastRemoteTitle = currentProjectTitle;
+  projectDirty = false;
   await loadRemoteDigests(false);
   return data.digest;
 }
 async function newRemoteDigest() {
+  clearTimeout(remoteSaveTimer);
+  resetStateToInitial();
   currentDigestId = "";
-  await createRemoteDigest();
-  setSaveStatus("Created in database");
+  currentProjectTitle = "Новый проект";
+  render(false);
+  rememberSnapshot(captureState());
+  saveLocalDraft();
+  await createRemoteDigest("created");
+  setSaveStatus("Создан новый проект");
 }
 async function saveRemoteNow() {
   try {
     await saveRemoteDraft("manual save", true);
   } catch (err) {
-    alert("Save failed: " + err.message);
+    console.error("Manual save error:", err);
+    setSaveStatus("Ошибка сохранения");
   }
 }
 function scheduleRemoteAutosave(action) {
-  if (!authToken) { setSaveStatus("Saved locally"); return; }
+  if (!authToken) {
+    setSaveStatus("Черновик сохранен локально");
+    return;
+  }
   clearTimeout(remoteSaveTimer);
-  setSaveStatus("Autosave pending");
+  projectDirty = true;
+  if (!autosaveEnabled) {
+    setSaveStatus("Автосохранение выключено");
+    return;
+  }
+  setSaveStatus("Есть изменения");
   remoteSaveTimer = setTimeout(() => {
     saveRemoteDraft(action || "autosave", false).catch(err => {
       console.error("Autosave error:", err);
-      setSaveStatus("Autosave failed");
+      setSaveStatus("Ошибка сохранения");
     });
   }, AUTOSAVE_DELAY_MS);
 }
 async function saveRemoteDraft(action, force) {
   if (!authToken) return;
   const snapshot = captureState();
-  if (!force && snapshot === lastRemoteSnapshot) {
-    setSaveStatus("Saved");
+  const title = projectTitle();
+  if (!force && snapshot === lastRemoteSnapshot && title === lastRemoteTitle) {
+    projectDirty = false;
+    setSaveStatus("Сохранено v" + currentVersion());
     return;
   }
+  savingRemote = true;
+  setSaveStatus("Сохранение...");
   if (!currentDigestId) {
-    await createRemoteDigest();
-    setSaveStatus("Saved");
+    try {
+      await createRemoteDigest(action || "manual save");
+      setSaveStatus("Сохранено v" + currentVersion());
+    } finally {
+      savingRemote = false;
+      renderSaveStatusOnly();
+    }
     return;
   }
-  const data = await apiRequest("/digests/" + currentDigestId + "/autosave", {
-    method: "PUT",
-    body: JSON.stringify({ title: digestTitle(), state, action: action || "autosave" })
-  });
-  lastRemoteSnapshot = snapshot;
-  const current = remoteDigests.find(d => d.id === currentDigestId);
-  if (current) {
-    current.title = digestTitle();
-    current.currentVersion = data.revision.version;
+  try {
+    const data = await apiRequest("/digests/" + currentDigestId + "/autosave", {
+      method: "PUT",
+      body: JSON.stringify({ title, state, action: action || "autosave" })
+    });
+    lastRemoteSnapshot = snapshot;
+    lastRemoteTitle = title;
+    projectDirty = false;
+    const current = remoteDigests.find(d => d.id === currentDigestId);
+    if (current) {
+      current.title = title;
+      current.currentVersion = data.revision.version;
+      current.updatedAt = new Date().toISOString();
+    }
+    setSaveStatus("Сохранено v" + data.revision.version);
+    await refreshRemoteRevisions();
+  } finally {
+    savingRemote = false;
+    renderSaveStatusOnly();
   }
-  setSaveStatus("Saved v" + data.revision.version);
-  await refreshRemoteRevisions();
 }
 async function loadSelectedDigest() {
   const selected = document.getElementById("digestSelect")?.value || currentDigestId;
@@ -342,15 +482,18 @@ async function loadRemoteDigest(digestId, quiet) {
     currentDigestId = data.digest.id;
     safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
     loadState(data.digest.state);
+    currentProjectTitle = data.digest.title || digestTitle();
     lastRemoteSnapshot = captureState();
+    lastRemoteTitle = currentProjectTitle;
+    projectDirty = false;
     rememberSnapshot(lastRemoteSnapshot);
     saveLocalDraft();
     render(false);
     await refreshRemoteRevisions();
-    setSaveStatus(quiet ? "Ready" : "Loaded v" + data.digest.currentVersion);
+    setSaveStatus(quiet ? "Сохранено v" + data.digest.currentVersion : "Открыт v" + data.digest.currentVersion);
   } catch (err) {
     if (quiet) console.warn("Remote load failed:", err);
-    else alert("Load failed: " + err.message);
+    else setSaveStatus("Ошибка загрузки");
   }
 }
 async function refreshRemoteRevisions() {
@@ -366,22 +509,60 @@ async function refreshRemoteRevisions() {
 async function rollbackRemoteRevision() {
   const revisionId = document.getElementById("revisionSelect")?.value || "";
   if (!revisionId || !currentDigestId) return;
-  if (!confirm("Rollback to selected version?")) return;
+  if (!confirm("Откатить проект к выбранной версии?")) return;
   try {
     const data = await apiRequest("/digests/" + currentDigestId + "/rollback", {
       method: "POST",
       body: JSON.stringify({ revisionId })
     });
     loadState(data.digest.state);
+    currentProjectTitle = data.digest.title || currentProjectTitle || digestTitle();
     lastRemoteSnapshot = captureState();
+    lastRemoteTitle = currentProjectTitle;
+    projectDirty = false;
     rememberSnapshot(lastRemoteSnapshot);
     saveLocalDraft();
     render(false);
     await refreshRemoteRevisions();
-    setSaveStatus("Rolled back to v" + data.digest.currentVersion);
+    setSaveStatus("Откат к v" + data.digest.currentVersion);
   } catch (err) {
-    alert("Rollback failed: " + err.message);
+    console.error("Rollback failed:", err);
+    setSaveStatus("Ошибка отката");
   }
+}
+
+async function openProject(projectId) {
+  if (!projectId || projectId === currentDigestId) return;
+  try {
+    if (projectDirty && currentDigestId) {
+      await saveRemoteDraft("switch project", true);
+    }
+    await loadRemoteDigest(projectId, false);
+  } catch (err) {
+    console.error("Project open failed:", err);
+    setSaveStatus("Ошибка загрузки");
+  }
+}
+function renameCurrentProject(value) {
+  currentProjectTitle = (value || "").trim() || "Новый проект";
+  const current = currentRemoteDigest();
+  if (current) current.title = currentProjectTitle;
+  projectDirty = true;
+  scheduleRemoteAutosave("renamed");
+  renderAccountBar();
+}
+function toggleAutosave() {
+  autosaveEnabled = !autosaveEnabled;
+  safeStorageSet(AUTOSAVE_ENABLED_KEY, autosaveEnabled ? "true" : "false");
+  clearTimeout(remoteSaveTimer);
+  if (!autosaveEnabled) {
+    setSaveStatus("Автосохранение выключено");
+  } else if (projectDirty) {
+    scheduleRemoteAutosave("autosave enabled");
+  } else {
+    setSaveStatus("Сохранено v" + currentVersion());
+  }
+  renderAccountBar();
 }
 
 // ============================================================
@@ -1002,48 +1183,152 @@ function renderPreview() {
   pv.innerHTML = html;
 }
 
-function renderAccountBar() {
-  const el = document.getElementById("accountBar");
+function renderAuthScreen() {
+  const el = document.getElementById("authScreen");
   if (!el) return;
-
-  if (!currentUser) {
-    el.innerHTML = `
-      <div class="account-row auth-row">
-        <input id="authEmail" type="email" placeholder="email">
-        <input id="authName" type="text" placeholder="name">
-        <input id="authPassword" type="password" placeholder="password">
-        <button type="button" onclick="loginAccount()">Login</button>
-        <button type="button" onclick="registerAccount()">Register</button>
-      </div>
-      <div class="account-status">Local draft mode. JSON export includes images.</div>`;
+  renderShellState();
+  if (currentUser) {
+    el.innerHTML = "";
     return;
   }
 
-  const digestOptions = remoteDigests.length
-    ? remoteDigests.map(d => `<option value="${escAttr(d.id)}" ${d.id === currentDigestId ? "selected" : ""}>${escText(d.title || "Digest")} · v${d.currentVersion || 1}</option>`).join("")
-    : `<option value="">No digests</option>`;
+  const isRegister = authMode === "register";
+  el.innerHTML = `
+    <div class="auth-card">
+      <div class="auth-brand">
+        <img src="logos/logo-skladka.svg" alt="">
+        <div>
+          <h1>Складка</h1>
+          <p>Войдите, чтобы сохранять проекты в базе и возвращаться к ним с любого устройства.</p>
+        </div>
+      </div>
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="${!isRegister ? "active" : ""}" onclick="setAuthMode('login')">Вход</button>
+        <button type="button" class="${isRegister ? "active" : ""}" onclick="setAuthMode('register')">Регистрация</button>
+      </div>
+      <form class="auth-form" onsubmit="submitAuthForm(event)">
+        <label>Email
+          <input id="authEmail" type="email" autocomplete="email" value="${escAttr(authDraft.email)}" oninput="authDraft.email=this.value" placeholder="name@example.com">
+        </label>
+        ${isRegister ? `
+          <label>Имя
+            <input id="authName" type="text" autocomplete="name" value="${escAttr(authDraft.name)}" oninput="authDraft.name=this.value" placeholder="Редакция">
+          </label>` : ""}
+        <label>Пароль
+          <input id="authPassword" type="password" autocomplete="${isRegister ? "new-password" : "current-password"}" value="${escAttr(authDraft.password)}" oninput="authDraft.password=this.value" placeholder="минимум 8 символов">
+        </label>
+        ${isRegister ? `
+          <label>Повторите пароль
+            <input id="authPasswordConfirm" type="password" autocomplete="new-password" value="${escAttr(authDraft.confirm)}" oninput="authDraft.confirm=this.value" placeholder="еще раз">
+          </label>` : ""}
+        ${authError ? `<div class="auth-error">${escText(authError)}</div>` : ""}
+        <button class="auth-submit" type="submit" ${authBusy ? "disabled" : ""}>
+          ${authBusy ? "Подождите..." : (isRegister ? "Создать аккаунт" : "Войти")}
+        </button>
+      </form>
+    </div>`;
+}
+
+function renderProjectList() {
+  if (!remoteDigests.length) {
+    return `
+      <div class="project-empty">
+        <strong>Проектов пока нет</strong>
+        <span>Создайте первый проект, и он сразу сохранится в базе.</span>
+      </div>`;
+  }
+
+  return remoteDigests
+    .slice()
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+    .map(d => {
+      const active = d.id === currentDigestId;
+      const title = d.title || "Новый проект";
+      const updated = formatProjectDate(d.updatedAt || d.createdAt);
+      return `
+        <button type="button" class="project-item ${active ? "active" : ""}" onclick="openProject('${escAttr(d.id)}')" ${active ? "disabled" : ""}>
+          <span class="project-item-main">
+            <span class="project-item-title">${escText(title)}</span>
+            <span class="project-item-meta">v${d.currentVersion || 1} · ${escText(updated)}</span>
+          </span>
+          <span class="project-item-action">${active ? "Открыт" : "Открыть"}</span>
+        </button>`;
+    }).join("");
+}
+
+function renderAccountBar() {
+  const el = document.getElementById("accountBar");
+  if (!el) return;
+  renderAuthScreen();
+
+  if (!currentUser) {
+    el.innerHTML = "";
+    return;
+  }
+
   const revisionOptions = remoteRevisions.length
     ? remoteRevisions.map(r => {
-        const date = r.createdAt ? new Date(r.createdAt).toLocaleString() : "";
+        const date = formatProjectDate(r.createdAt);
         return `<option value="${escAttr(r.id)}">v${r.version} · ${escText(r.action || "autosave")} · ${escText(date)}</option>`;
       }).join("")
-    : `<option value="">No versions</option>`;
+    : `<option value="">Версий пока нет</option>`;
+  const current = currentRemoteDigest();
+  const userLabel = currentUser.name || currentUser.email || "Аккаунт";
+  const updated = current ? formatProjectDate(current.updatedAt || current.createdAt) : "без даты";
 
   el.innerHTML = `
-    <div class="account-row">
-      <span class="account-user">${escText(currentUser.email || "")}</span>
-      <select id="digestSelect" onchange="loadSelectedDigest()">${digestOptions}</select>
-      <button type="button" onclick="newRemoteDigest()">New</button>
-      <button type="button" onclick="saveRemoteNow()">Save</button>
-      <button type="button" onclick="undoAction()" ${localHistory.length <= 1 ? "disabled" : ""}>Undo</button>
-      <button type="button" onclick="redoAction()" ${redoHistory.length ? "" : "disabled"}>Redo</button>
-      <button type="button" onclick="logoutAccount()">Logout</button>
-    </div>
-    <div class="account-row">
-      <select id="revisionSelect">${revisionOptions}</select>
-      <button type="button" onclick="rollbackRemoteRevision()" ${remoteRevisions.length ? "" : "disabled"}>Rollback</button>
-      <span class="account-status">${escText(saveStatus || "Ready")}</span>
-    </div>`;
+    <section class="project-panel">
+      <div class="project-topline">
+        <div class="account-user">
+          <span>${escText(userLabel)}</span>
+          <small>${escText(currentUser.email || "")}</small>
+        </div>
+        <button type="button" class="link-button" onclick="logoutAccount()">Выйти</button>
+      </div>
+
+      <div class="project-title-row">
+        <label class="project-title-label">
+          <span>Текущий проект</span>
+          <input id="projectTitleInput" class="project-title-input" type="text" value="${escAttr(projectTitle())}" onchange="renameCurrentProject(this.value)" onkeydown="if(event.key==='Enter')this.blur()">
+        </label>
+        <div id="saveStatusPill" class="save-status ${saveStatusClass()}">
+          <span id="saveStatusText">${escText(saveStatus || "Сохранено v" + currentVersion())}</span>
+        </div>
+      </div>
+
+      <div class="primary-actions">
+        <button id="manualSaveBtn" type="button" class="primary-action" onclick="saveRemoteNow()" ${savingRemote ? "disabled" : ""}>Сохранить</button>
+        <label class="autosave-control">
+          <input id="autosaveToggle" type="checkbox" ${autosaveEnabled ? "checked" : ""} onchange="toggleAutosave()">
+          <span>Автосохранение</span>
+        </label>
+        <button type="button" onclick="newRemoteDigest()">Новый проект</button>
+      </div>
+
+      <div class="secondary-actions">
+        <button type="button" onclick="exportJSON()">Экспорт JSON</button>
+        <button type="button" onclick="importJSON()">Импорт JSON</button>
+        <button type="button" onclick="undoAction()" ${localHistory.length <= 1 ? "disabled" : ""}>Назад</button>
+        <button type="button" onclick="redoAction()" ${redoHistory.length ? "" : "disabled"}>Вперед</button>
+        <button type="button" onclick="clearAll()">Очистить</button>
+      </div>
+
+      <div class="project-version-row">
+        <div class="project-version-meta">v${currentVersion()} · обновлен ${escText(updated)}</div>
+        <div class="revision-tools">
+          <select id="revisionSelect">${revisionOptions}</select>
+          <button type="button" onclick="rollbackRemoteRevision()" ${remoteRevisions.length ? "" : "disabled"}>Откатить</button>
+        </div>
+      </div>
+
+      <div class="projects-panel">
+        <div class="projects-heading">
+          <span>Проекты</span>
+          <small>${remoteDigests.length}</small>
+        </div>
+        <div class="project-list">${renderProjectList()}</div>
+      </div>
+    </section>`;
 }
 
 // ============================================================
@@ -1063,7 +1348,7 @@ function exportJSON() {
   const blob = new Blob([JSON.stringify(stateEnvelope(), null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = 'digest' + '.json';
+  a.download = safeFileTitle(projectTitle()) + '.json';
   a.click();
 }
 function importJSON() { document.getElementById("fileInput").click(); }
@@ -1073,11 +1358,33 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
   if (!file) return;
   try {
     const data = JSON.parse(await file.text());
-    loadState(importedState(data));
-    render();
-    alert("Файл загружен успешно.");
+    const nextState = importedState(data);
+    loadState(nextState);
+    currentProjectTitle = (data.title || nextState?.letter?.title || "Импортированный проект").trim() || "Импортированный проект";
+    render(false);
+    rememberSnapshot(captureState());
+    saveLocalDraft();
+    projectDirty = true;
+    if (authToken) {
+      const imported = await apiRequest("/digests/import", {
+        method: "POST",
+        body: JSON.stringify({ title: currentProjectTitle, state })
+      });
+      currentDigestId = imported.digest.id;
+      currentProjectTitle = imported.digest.title || currentProjectTitle;
+      safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
+      lastRemoteSnapshot = captureState();
+      lastRemoteTitle = currentProjectTitle;
+      projectDirty = false;
+      await loadRemoteDigests(false);
+      setSaveStatus("Импортирован v" + imported.digest.currentVersion);
+    } else {
+      setSaveStatus("JSON загружен локально");
+      renderAccountBar();
+    }
   } catch(err) {
-    alert("Не удалось прочитать файл: " + (err.message || err));
+    console.error("JSON import error:", err);
+    setSaveStatus("Ошибка импорта JSON");
   }
 });
 

@@ -2,15 +2,18 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Конструктор аналитического дайджеста</title>
-<link rel="stylesheet" href="style.css?v=33">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Конструктор дайджеста</title>
+<link rel="stylesheet" href="style.css?v=34">
 </head>
 <body>
+
+<div id="authScreen" class="auth-screen" hidden></div>
 
 <div class="app">
   <div class="editor">
     <div class="toolbar">
-      <img src="logos/logo-skladka.svg" class="toolbar-logo">
+      <img src="logos/logo-skladka.svg" class="toolbar-logo" alt="Складка">
       <div class="export-cards">
         <button class="export-card export-pdf" onclick="exportPDF()">
           <svg class="ec-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
@@ -23,14 +26,14 @@
           <svg class="ec-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           <div class="ec-texts">
             <div class="ec-title">PNG</div>
-            <div class="ec-sub">ZIP · Постранично</div>
+            <div class="ec-sub">ZIP · постранично</div>
           </div>
         </button>
       </div>
       <div class="btns">
-        <button onclick="exportJSON()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Сохранить</button>
-        <button onclick="importJSON()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Импорт</button>
-        <button onclick="clearAll()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> Очистить</button>
+        <button onclick="exportJSON()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Экспорт JSON</button>
+        <button onclick="importJSON()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Импорт JSON</button>
+        <button onclick="clearAll()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>Очистить</button>
       </div>
     </div>
     <div id="accountBar" class="account-bar"></div>
@@ -40,7 +43,7 @@
   <div class="resize-handle" id="resizeHandle"></div>
   <div class="preview-pane" id="preview">
     <div class="empty-state">
-      <img src="logos/kao.svg" class="empty-kao">
+      <img src="logos/kao.svg" class="empty-kao" alt="">
       <div>здесь пока пусто</div>
     </div>
   </div>
@@ -75,7 +78,7 @@
 
 <script src="html2canvas.min.js"></script>
 <script src="jszip.min.js"></script>
-<script src="app.js?v=32"></script>
+<script src="app.js?v=34"></script>
 
 </body>
 </html>

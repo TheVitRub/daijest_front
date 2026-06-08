@@ -78,6 +78,7 @@ let authDraft = { email: "", name: "", password: "", confirm: "" };
 let projectsPanelOpen = false;
 let projectSearch = "";
 let projectMenuOpenId = "";
+let projectMenuPosition = null;
 let confirmDialog = null;
 let renamingProjectId = "";
 let renameDraft = "";
@@ -375,6 +376,7 @@ function logoutAccount() {
   savingRemote = false;
   projectsPanelOpen = false;
   projectMenuOpenId = "";
+  projectMenuPosition = null;
   confirmDialog = null;
   revisionPreview = null;
   clearTimeout(remoteSaveTimer);
@@ -564,7 +566,11 @@ async function rollbackRemoteRevision() {
 }
 
 async function openProject(projectId) {
-  if (!projectId || projectId === currentDigestId) return;
+  if (!projectId) return;
+  if (projectId === currentDigestId) {
+    closeProjectMenu();
+    return;
+  }
   try {
     if (revisionPreview) {
       revisionPreview = null;
@@ -572,7 +578,7 @@ async function openProject(projectId) {
       await saveRemoteDraft("switch project", true);
     }
     await loadRemoteDigest(projectId, false);
-    projectMenuOpenId = "";
+    closeProjectMenu();
   } catch (err) {
     console.error("Project open failed:", err);
     setSaveStatus("Ошибка загрузки");
@@ -602,11 +608,13 @@ function toggleAutosave() {
 function openProjectsPanel() {
   projectsPanelOpen = true;
   projectMenuOpenId = "";
+  projectMenuPosition = null;
   renderAccountBar();
 }
 function closeProjectsPanel() {
   projectsPanelOpen = false;
   projectMenuOpenId = "";
+  projectMenuPosition = null;
   confirmDialog = null;
   renderAccountBar();
 }
@@ -614,17 +622,46 @@ function setProjectSearch(value) {
   projectSearch = value || "";
   const list = document.getElementById("projectList");
   if (list) list.innerHTML = renderProjectList();
+  closeProjectMenu();
 }
-function toggleProjectMenu(projectId) {
-  projectMenuOpenId = projectMenuOpenId === projectId ? "" : projectId;
-  renderAccountBar();
+function syncProjectMenuLayer() {
+  const host = document.getElementById("projectMenuLayerHost");
+  if (host) host.innerHTML = renderProjectMenu();
+}
+function closeProjectMenu() {
+  projectMenuOpenId = "";
+  projectMenuPosition = null;
+  syncProjectMenuLayer();
+}
+function toggleProjectMenu(event, projectId) {
+  event.stopPropagation();
+  if (projectMenuOpenId === projectId) {
+    closeProjectMenu();
+    return;
+  }
+  const rect = event.currentTarget.getBoundingClientRect();
+  const menuHeight = 238;
+  projectMenuOpenId = projectId;
+  projectMenuPosition = {
+    top: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - menuHeight - 12)),
+    right: Math.max(12, window.innerWidth - rect.right)
+  };
+  syncProjectMenuLayer();
+}
+function handleProjectsDrawerClick(event) {
+  event.stopPropagation();
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (projectMenuOpenId && !target.closest(".project-menu-layer") && !target.closest(".project-menu-button")) {
+    closeProjectMenu();
+  }
 }
 function startRenameProject(projectId) {
   const digest = remoteDigests.find(d => d.id === projectId) || currentRemoteDigest();
   if (!digest) return;
   renamingProjectId = projectId;
   renameDraft = digest.title || projectTitle();
-  projectMenuOpenId = "";
+  closeProjectMenu();
   renderAccountBar();
 }
 function cancelRenameProject() {
@@ -677,7 +714,7 @@ async function duplicateProject(projectId) {
     currentDigestId = created.digest.id;
     currentProjectTitle = created.digest.title || title;
     safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
-    projectMenuOpenId = "";
+    closeProjectMenu();
     await loadRemoteDigest(currentDigestId, false);
     await loadRemoteDigests(false);
     setSaveStatus("Проект дублирован");
@@ -690,7 +727,7 @@ async function deleteProject(projectId) {
   if (!authToken || !projectId) return;
   try {
     await apiRequest("/digests/" + projectId, { method: "DELETE" });
-    projectMenuOpenId = "";
+    closeProjectMenu();
     if (projectId === currentDigestId) {
       currentDigestId = "";
       remoteRevisions = [];
@@ -1508,18 +1545,28 @@ function renderProjectList() {
           </div>
           <div class="project-item-actions">
             ${active ? `<span class="project-opened">Открыт</span>` : `<button type="button" onclick="openProject('${escAttr(d.id)}')">Открыть</button>`}
-            <button type="button" class="project-menu-button" onclick="toggleProjectMenu('${escAttr(d.id)}')" aria-label="Меню проекта">&#8942;</button>
-            ${projectMenuOpenId === d.id ? `
-              <div class="project-menu">
-                <button type="button" onclick="openProject('${escAttr(d.id)}')">Открыть</button>
-                <button type="button" onclick="startRenameProject('${escAttr(d.id)}')">Переименовать</button>
-                <button type="button" onclick="duplicateProject('${escAttr(d.id)}')">Дублировать</button>
-                <button type="button" onclick="exportProjectJSON('${escAttr(d.id)}')">Экспортировать JSON</button>
-                <button type="button" class="danger-text" onclick="confirmDeleteProject('${escAttr(d.id)}')">Удалить</button>
-              </div>` : ""}
+            <button type="button" class="project-menu-button" onclick="toggleProjectMenu(event, '${escAttr(d.id)}')" aria-label="Меню проекта">&#8942;</button>
           </div>
         </article>`;
     }).join("");
+}
+
+function renderProjectMenu() {
+  if (!projectMenuOpenId) return "";
+  const digest = remoteDigests.find(d => d.id === projectMenuOpenId);
+  if (!digest) return "";
+  const top = projectMenuPosition ? projectMenuPosition.top : 92;
+  const right = projectMenuPosition ? projectMenuPosition.right : 24;
+  const id = escAttr(digest.id);
+  const active = digest.id === currentDigestId;
+  return `
+    <div class="project-menu-layer" style="top:${top}px;right:${right}px" onclick="event.stopPropagation()">
+      ${active ? `<button type="button" disabled>Открыт</button>` : `<button type="button" onclick="openProject('${id}')">Открыть</button>`}
+      <button type="button" onclick="startRenameProject('${id}')">Переименовать</button>
+      <button type="button" onclick="duplicateProject('${id}')">Дублировать</button>
+      <button type="button" onclick="exportProjectJSON('${id}')">Экспортировать JSON</button>
+      <button type="button" class="danger-text" onclick="confirmDeleteProject('${id}')">Удалить</button>
+    </div>`;
 }
 
 function renderRevisionHistory() {
@@ -1569,7 +1616,7 @@ function renderProjectsDrawer() {
   const currentIsRenaming = renamingProjectId === currentDigestId;
   return `
     <div class="projects-drawer-backdrop" onclick="closeProjectsPanel()">
-      <aside class="projects-drawer" onclick="event.stopPropagation()">
+      <aside class="projects-drawer" onclick="handleProjectsDrawerClick(event)">
         <header class="drawer-header">
           <div>
             <h2>Проекты</h2>
@@ -1646,6 +1693,7 @@ function renderProjectsDrawer() {
             <button type="button" onclick="confirmDeleteProject('${escAttr(currentDigestId)}')">Удалить проект</button>
           </div>
         </section>
+        <div id="projectMenuLayerHost">${renderProjectMenu()}</div>
       </aside>
     </div>`;
 }

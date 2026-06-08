@@ -1781,12 +1781,10 @@ label { color: #888; }
   width: 34px;
   padding: 0;
 }
-.project-menu {
-  position: absolute;
-  right: 10px;
-  top: 46px;
-  z-index: 5;
-  width: 190px;
+.project-menu-layer {
+  position: fixed;
+  z-index: 9100;
+  width: 214px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1794,12 +1792,16 @@ label { color: #888; }
   border: 1px solid #444;
   border-radius: 8px;
   background: #2a2a2a;
-  box-shadow: 0 14px 40px rgba(0,0,0,0.38);
+  box-shadow: 0 18px 52px rgba(0,0,0,0.46);
 }
-.project-menu button {
+.project-menu-layer button {
   width: 100%;
   justify-content: flex-start;
   text-align: left;
+}
+.project-menu-layer button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 .danger-text {
   color: #ffaaa4 !important;
@@ -1947,9 +1949,11 @@ label { color: #888; }
   .drawer-action-row button {
     flex: 1 1 130px;
   }
-  .project-menu {
-    position: static;
-    width: 100%;
-    grid-column: 1 / -1;
+  .project-menu-layer {
+    top: auto !important;
+    right: 14px !important;
+    bottom: 14px;
+    left: 14px;
+    width: auto;
   }
 }

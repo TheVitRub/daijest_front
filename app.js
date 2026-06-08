@@ -1565,12 +1565,12 @@ function newsItemHTML(it) {
     return `
       <div class="news-with-photo">
         <div>${textBlock}</div>
-        <div class="photo-side" style="background-image:url('${photos[0]}')"></div>
+        <div class="photo-side"><img src="${escAttr(photos[0])}" alt=""></div>
       </div>`;
   }
   const photoGrid = photos.length ? `
     <div class="pt-photos n${Math.min(photos.length, 4)}">
-      ${photos.slice(0, 4).map(p => `<div class="pt-img" style="background-image:url('${p}');aspect-ratio:${ratio}"></div>`).join("")}
+      ${photos.slice(0, 4).map(p => `<div class="pt-img" style="aspect-ratio:${ratio}"><img src="${escAttr(p)}" alt=""></div>`).join("")}
     </div>` : "";
   return `
     <div class="news-block">

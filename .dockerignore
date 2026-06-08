@@ -1,6 +1,5 @@
 .git
 .github
+deploy
 Dockerfile
-nginx.conf
 *.backup-*
-

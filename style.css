@@ -755,17 +755,17 @@ input[type=file] { font-size: 12px; }
 }
 .news-with-photo {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
   gap: 14px;
-  align-items: stretch;
+  align-items: start;
 }
-.news-with-photo > div:first-child {
+.news-with-photo .news-side-text {
   background: #fff;
   border-radius: 10px;
   padding: 14px;
 }
-.news-with-photo > div:first-child h4 { margin: 0 0 12px 0; font-size: 20px; font-family: "IBMPlex", sans-serif; font-weight: 500; color: #000000; text-align: left; }
-.news-with-photo > div:first-child p  { margin: 0; font-size: 18px; font-family: "IBMPlex", sans-serif; font-weight: 400; line-height: 1.45; color: #4D4D4D; text-align: left; }
+.news-with-photo .news-side-text h4 { margin: 0 0 12px 0; font-size: 20px; font-family: "IBMPlex", sans-serif; font-weight: 500; color: #000000; text-align: left; }
+.news-with-photo .news-side-text p  { margin: 0; font-size: 18px; font-family: "IBMPlex", sans-serif; font-weight: 400; line-height: 1.45; color: #4D4D4D; text-align: left; }
 .news-with-photo .photo-side {
   border-radius: 10px;
   overflow: hidden;
@@ -799,6 +799,13 @@ input[type=file] { font-size: 12px; }
 .pt-photos.n2 { grid-template-columns: 1fr 1fr; }
 .pt-photos.n3 { grid-template-columns: 1fr 1fr 1fr; }
 .pt-photos.n4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.news-with-photo .side-photos {
+  margin: 0;
+}
+.news-with-photo .side-photos.n3,
+.news-with-photo .side-photos.n4 {
+  grid-template-columns: 1fr 1fr;
+}
 .pt-photos .pt-img {
   border-radius: 8px;
   overflow: hidden;
@@ -819,6 +826,10 @@ input[type=file] { font-size: 12px; }
 .pt-photos.n2 .pt-img img { max-height: 280px; }
 .pt-photos.n3 .pt-img img,
 .pt-photos.n4 .pt-img img { max-height: 220px; }
+.news-with-photo .side-photos.n1 .pt-img img { max-height: 320px; }
+.news-with-photo .side-photos.n2 .pt-img img { max-height: 220px; }
+.news-with-photo .side-photos.n3 .pt-img img,
+.news-with-photo .side-photos.n4 .pt-img img { max-height: 154px; }
 /* Color themes (companies) */
 .theme-volkov   { background: #f4a93d; }
 .theme-kalina   { background: #d63031; }
@@ -850,7 +861,7 @@ input[type=file] { font-size: 12px; }
   .letter-body-card { background: #ffffff !important; }
   .kpi-tile      { background: #ffffff !important; }
   .ach-item      { background: #ffffff !important; }
-  .news-with-photo > div:first-child { background: #ffffff !important; }
+  .news-with-photo .news-side-text { background: #ffffff !important; }
   .print-tip { display: none !important; }
 }
 /* Print tip overlay */

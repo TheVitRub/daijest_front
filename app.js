@@ -1560,17 +1560,17 @@ function newsItemHTML(it) {
   const textBlock = `
     ${it.title ? `<h4>${escText(it.title)}</h4>` : ""}
     ${it.text  ? `<p>${escText(it.text).replace(/\n/g, '<br>')}</p>`   : ""}`;
-  if (photos.length && it.photoLayout === 'side') {
-    return `
-      <div class="news-with-photo">
-        <div>${textBlock}</div>
-        <div class="photo-side"><img src="${escAttr(photos[0])}" alt=""></div>
-      </div>`;
-  }
   const photoGrid = photos.length ? `
     <div class="pt-photos n${Math.min(photos.length, 4)}">
       ${photos.slice(0, 4).map(p => `<div class="pt-img"><img src="${escAttr(p)}" alt=""></div>`).join("")}
     </div>` : "";
+  if (photos.length && it.photoLayout === 'side') {
+    return `
+      <div class="news-with-photo">
+        <div class="news-side-text">${textBlock}</div>
+        ${photoGrid.replace('class="pt-photos', 'class="pt-photos side-photos')}
+      </div>`;
+  }
   return `
     <div class="news-block">
       <div class="ach-item">

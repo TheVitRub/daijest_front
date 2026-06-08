@@ -2015,7 +2015,7 @@ function exportPDF() {
   let css = '';
   pages.forEach((p, i) => {
     const name = `pg${i}`;
-    const h = Math.ceil(p.offsetHeight);
+    const h = Math.ceil(Math.max(p.offsetHeight, p.scrollHeight));
     p.setAttribute('data-pgname', name);
     css += `@page ${name} { size: 1180px ${h}px; margin: 0; }\n`;
     css += `[data-pgname="${name}"] { page: ${name}; height: ${h}px !important; }\n`;

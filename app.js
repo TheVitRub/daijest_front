@@ -19,7 +19,12 @@ const LOGO_DATA = {
 const STORAGE_KEY = "digest-builder-draft-v2";
 const AUTH_TOKEN_KEY = "digest-builder-auth-token-v1";
 const CURRENT_DIGEST_KEY = "digest-builder-current-digest-v1";
-const API_BASE = window.DJST_API_BASE || "/api";
+const PUBLIC_BASE_PATH =
+  window.DJST_PUBLIC_BASE_PATH ||
+  (window.location.pathname === "/daijest" || window.location.pathname.startsWith("/daijest/")
+    ? "/daijest"
+    : "");
+const API_BASE = window.DJST_API_BASE || `${PUBLIC_BASE_PATH}/api`;
 const AUTOSAVE_DELAY_MS = 900;
 const HISTORY_LIMIT = 60;
 

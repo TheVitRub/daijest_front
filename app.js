@@ -75,6 +75,13 @@ let authMode = "login";
 let authError = "";
 let authBusy = false;
 let authDraft = { email: "", name: "", password: "", confirm: "" };
+let projectsPanelOpen = false;
+let projectSearch = "";
+let projectMenuOpenId = "";
+let confirmDialog = null;
+let renamingProjectId = "";
+let renameDraft = "";
+let revisionPreview = null;
 let autosaveEnabled = safeStorageGet(AUTOSAVE_ENABLED_KEY) !== "false";
 let projectDirty = false;
 let savingRemote = false;
@@ -160,6 +167,11 @@ function redoAction() {
 }
 function afterStateChanged(action) {
   if (booting) return;
+  if (revisionPreview) {
+    setSaveStatus("Просмотр v" + revisionPreview.version);
+    renderAccountBar();
+    return;
+  }
   const snapshot = captureState();
   rememberSnapshot(snapshot);
   saveLocalDraft();
@@ -216,20 +228,44 @@ function formatProjectDate(value) {
   if (Number.isNaN(date.getTime())) return "без даты";
   return date.toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
+function formatProjectTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
 function safeFileTitle(value) {
   return (value || "project").trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 80) || "project";
 }
 function saveStatusClass() {
   if (/ошибка/i.test(saveStatus)) return "error";
   if (/сохранение/i.test(saveStatus)) return "saving";
-  if (/изменения|выключено/i.test(saveStatus)) return "dirty";
+  if (/изменения|выключено|просмотр/i.test(saveStatus)) return "dirty";
   return "saved";
+}
+function saveStatusSummary() {
+  if (revisionPreview) return "Просмотр v" + revisionPreview.version;
+  if (/ошибка/i.test(saveStatus)) return "Ошибка сохранения";
+  if (/сохранение/i.test(saveStatus)) return "Сохраняем...";
+  if (projectDirty || /изменения/i.test(saveStatus)) return "Есть изменения";
+  if (!autosaveEnabled && /выключено/i.test(saveStatus)) return "Автосохранение выключено";
+  const savedAt = currentRemoteDigest()?.updatedAt;
+  const time = formatProjectTime(savedAt);
+  return time ? "Сохранено " + time : "Сохранено";
 }
 function renderSaveStatusOnly() {
   const statusEl = document.getElementById("saveStatusText");
   if (statusEl) statusEl.textContent = saveStatus || (autosaveEnabled ? "Сохранено" : "Автосохранение выключено");
+  const mainStatusEl = document.getElementById("mainSaveStatusText");
+  if (mainStatusEl) mainStatusEl.textContent = saveStatusSummary();
+  const drawerStatusEl = document.getElementById("drawerSaveStatusText");
+  if (drawerStatusEl) drawerStatusEl.textContent = saveStatusSummary();
   const pill = document.getElementById("saveStatusPill");
   if (pill) pill.className = "save-status " + saveStatusClass();
+  const mainPill = document.getElementById("mainSaveStatusPill");
+  if (mainPill) mainPill.className = "main-save-status " + saveStatusClass();
+  const drawerPill = document.getElementById("drawerSaveStatusPill");
+  if (drawerPill) drawerPill.className = "save-dot " + saveStatusClass();
   const saveBtn = document.getElementById("manualSaveBtn");
   if (saveBtn) saveBtn.disabled = savingRemote;
   const autosaveToggle = document.getElementById("autosaveToggle");
@@ -240,6 +276,7 @@ function renderShellState() {
   const app = document.querySelector(".app");
   if (authScreen) authScreen.hidden = !!currentUser;
   if (app) app.classList.toggle("app-hidden", !currentUser);
+  if (app) app.classList.toggle("revision-preview-mode", !!revisionPreview);
 }
 function setSaveStatus(text) {
   saveStatus = text || "";
@@ -336,6 +373,10 @@ function logoutAccount() {
   currentProjectTitle = "";
   projectDirty = false;
   savingRemote = false;
+  projectsPanelOpen = false;
+  projectMenuOpenId = "";
+  confirmDialog = null;
+  revisionPreview = null;
   clearTimeout(remoteSaveTimer);
   safeStorageRemove(AUTH_TOKEN_KEY);
   safeStorageRemove(CURRENT_DIGEST_KEY);
@@ -411,6 +452,10 @@ async function saveRemoteNow() {
   }
 }
 function scheduleRemoteAutosave(action) {
+  if (revisionPreview) {
+    setSaveStatus("Просмотр v" + revisionPreview.version);
+    return;
+  }
   if (!authToken) {
     setSaveStatus("Черновик сохранен локально");
     return;
@@ -430,6 +475,10 @@ function scheduleRemoteAutosave(action) {
   }, AUTOSAVE_DELAY_MS);
 }
 async function saveRemoteDraft(action, force) {
+  if (revisionPreview) {
+    setSaveStatus("Просмотр v" + revisionPreview.version);
+    return;
+  }
   if (!authToken) return;
   const snapshot = captureState();
   const title = projectTitle();
@@ -478,6 +527,7 @@ async function loadSelectedDigest() {
 }
 async function loadRemoteDigest(digestId, quiet) {
   try {
+    revisionPreview = null;
     const data = await apiRequest("/digests/" + digestId);
     currentDigestId = data.digest.id;
     safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
@@ -509,35 +559,20 @@ async function refreshRemoteRevisions() {
 async function rollbackRemoteRevision() {
   const revisionId = document.getElementById("revisionSelect")?.value || "";
   if (!revisionId || !currentDigestId) return;
-  if (!confirm("Откатить проект к выбранной версии?")) return;
-  try {
-    const data = await apiRequest("/digests/" + currentDigestId + "/rollback", {
-      method: "POST",
-      body: JSON.stringify({ revisionId })
-    });
-    loadState(data.digest.state);
-    currentProjectTitle = data.digest.title || currentProjectTitle || digestTitle();
-    lastRemoteSnapshot = captureState();
-    lastRemoteTitle = currentProjectTitle;
-    projectDirty = false;
-    rememberSnapshot(lastRemoteSnapshot);
-    saveLocalDraft();
-    render(false);
-    await refreshRemoteRevisions();
-    setSaveStatus("Откат к v" + data.digest.currentVersion);
-  } catch (err) {
-    console.error("Rollback failed:", err);
-    setSaveStatus("Ошибка отката");
-  }
+  const revision = remoteRevisions.find(r => r.id === revisionId);
+  confirmRollbackRevision(revisionId, revision?.version || "");
 }
 
 async function openProject(projectId) {
   if (!projectId || projectId === currentDigestId) return;
   try {
-    if (projectDirty && currentDigestId) {
+    if (revisionPreview) {
+      revisionPreview = null;
+    } else if (projectDirty && currentDigestId) {
       await saveRemoteDraft("switch project", true);
     }
     await loadRemoteDigest(projectId, false);
+    projectMenuOpenId = "";
   } catch (err) {
     console.error("Project open failed:", err);
     setSaveStatus("Ошибка загрузки");
@@ -563,6 +598,205 @@ function toggleAutosave() {
     setSaveStatus("Сохранено v" + currentVersion());
   }
   renderAccountBar();
+}
+function openProjectsPanel() {
+  projectsPanelOpen = true;
+  projectMenuOpenId = "";
+  renderAccountBar();
+}
+function closeProjectsPanel() {
+  projectsPanelOpen = false;
+  projectMenuOpenId = "";
+  confirmDialog = null;
+  renderAccountBar();
+}
+function setProjectSearch(value) {
+  projectSearch = value || "";
+  const list = document.getElementById("projectList");
+  if (list) list.innerHTML = renderProjectList();
+}
+function toggleProjectMenu(projectId) {
+  projectMenuOpenId = projectMenuOpenId === projectId ? "" : projectId;
+  renderAccountBar();
+}
+function startRenameProject(projectId) {
+  const digest = remoteDigests.find(d => d.id === projectId) || currentRemoteDigest();
+  if (!digest) return;
+  renamingProjectId = projectId;
+  renameDraft = digest.title || projectTitle();
+  projectMenuOpenId = "";
+  renderAccountBar();
+}
+function cancelRenameProject() {
+  renamingProjectId = "";
+  renameDraft = "";
+  renderAccountBar();
+}
+async function finishRenameProject() {
+  const nextTitle = (renameDraft || "").trim() || "Новый проект";
+  if (!renamingProjectId) return;
+  if (renamingProjectId !== currentDigestId) {
+    await openProject(renamingProjectId);
+  }
+  currentProjectTitle = nextTitle;
+  const current = currentRemoteDigest();
+  if (current) current.title = nextTitle;
+  renamingProjectId = "";
+  renameDraft = "";
+  projectDirty = true;
+  await saveRemoteDraft("renamed", true);
+  await loadRemoteDigests(false);
+}
+function openConfirmDialog(config) {
+  confirmDialog = config;
+  renderAccountBar();
+}
+function closeConfirmDialog() {
+  confirmDialog = null;
+  renderAccountBar();
+}
+async function acceptConfirmDialog() {
+  const dialog = confirmDialog;
+  if (!dialog || typeof dialog.onConfirm !== "function") return;
+  confirmDialog = null;
+  renderAccountBar();
+  await dialog.onConfirm();
+}
+async function duplicateProject(projectId) {
+  if (!authToken || !projectId) return;
+  try {
+    if (projectDirty && projectId === currentDigestId && !revisionPreview) {
+      await saveRemoteDraft("before duplicate", true);
+    }
+    const data = await apiRequest("/digests/" + projectId);
+    const title = "Копия - " + (data.digest.title || "Новый проект");
+    const created = await apiRequest("/digests", {
+      method: "POST",
+      body: JSON.stringify({ title, state: data.digest.state, action: "duplicated" })
+    });
+    currentDigestId = created.digest.id;
+    currentProjectTitle = created.digest.title || title;
+    safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
+    projectMenuOpenId = "";
+    await loadRemoteDigest(currentDigestId, false);
+    await loadRemoteDigests(false);
+    setSaveStatus("Проект дублирован");
+  } catch (err) {
+    console.error("Duplicate project failed:", err);
+    setSaveStatus("Ошибка дублирования");
+  }
+}
+async function deleteProject(projectId) {
+  if (!authToken || !projectId) return;
+  try {
+    await apiRequest("/digests/" + projectId, { method: "DELETE" });
+    projectMenuOpenId = "";
+    if (projectId === currentDigestId) {
+      currentDigestId = "";
+      remoteRevisions = [];
+      lastRemoteSnapshot = "";
+      lastRemoteTitle = "";
+      revisionPreview = null;
+      safeStorageRemove(CURRENT_DIGEST_KEY);
+      await loadRemoteDigests(true);
+    } else {
+      await loadRemoteDigests(false);
+    }
+    setSaveStatus("Проект удален");
+  } catch (err) {
+    console.error("Delete project failed:", err);
+    setSaveStatus("Ошибка удаления");
+  }
+}
+function confirmDeleteProject(projectId) {
+  const digest = remoteDigests.find(d => d.id === projectId) || currentRemoteDigest();
+  const title = digest?.title || "Новый проект";
+  openConfirmDialog({
+    title: `Удалить проект "${title}"?`,
+    message: "Это действие нельзя отменить.",
+    confirmText: "Удалить",
+    danger: true,
+    onConfirm: () => deleteProject(projectId)
+  });
+}
+async function clearCurrentProject() {
+  resetStateToInitial();
+  revisionPreview = null;
+  render(false);
+  rememberSnapshot(captureState());
+  saveLocalDraft();
+  projectDirty = true;
+  await saveRemoteDraft("cleared", true);
+}
+function confirmClearCurrentProject() {
+  openConfirmDialog({
+    title: "Очистить текущий проект?",
+    message: "Все блоки и обложки будут удалены, а пустое состояние сохранится в базу.",
+    confirmText: "Очистить",
+    danger: true,
+    onConfirm: clearCurrentProject
+  });
+}
+async function openRevisionPreview(revisionId) {
+  if (!authToken || !currentDigestId || !revisionId) return;
+  try {
+    if (projectDirty && !revisionPreview) {
+      await saveRemoteDraft("before revision preview", true);
+    }
+    const data = await apiRequest("/digests/" + currentDigestId + "/revisions/" + revisionId);
+    revisionPreview = {
+      id: data.revision.id,
+      version: data.revision.version,
+      action: data.revision.action || "",
+      createdAt: data.revision.createdAt || ""
+    };
+    loadState(data.revision.state);
+    render(false);
+    setSaveStatus("Просмотр v" + data.revision.version);
+  } catch (err) {
+    console.error("Revision preview failed:", err);
+    setSaveStatus("Ошибка версии");
+  }
+}
+async function returnToCurrentRevision() {
+  if (!currentDigestId) return;
+  revisionPreview = null;
+  await loadRemoteDigest(currentDigestId, false);
+}
+async function rollbackRevision(revisionId, version) {
+  if (!revisionId || !currentDigestId) return;
+  if (!revisionPreview && projectDirty) {
+    await saveRemoteDraft("before rollback", true);
+  }
+  try {
+    const data = await apiRequest("/digests/" + currentDigestId + "/rollback", {
+      method: "POST",
+      body: JSON.stringify({ revisionId })
+    });
+    revisionPreview = null;
+    loadState(data.digest.state);
+    currentProjectTitle = data.digest.title || currentProjectTitle || digestTitle();
+    lastRemoteSnapshot = captureState();
+    lastRemoteTitle = currentProjectTitle;
+    projectDirty = false;
+    rememberSnapshot(lastRemoteSnapshot);
+    saveLocalDraft();
+    render(false);
+    await refreshRemoteRevisions();
+    setSaveStatus("Откат к v" + (version || data.digest.currentVersion));
+  } catch (err) {
+    console.error("Rollback failed:", err);
+    setSaveStatus("Ошибка отката");
+  }
+}
+function confirmRollbackRevision(revisionId, version) {
+  openConfirmDialog({
+    title: "Откатить проект к версии v" + version + "?",
+    message: "Текущая версия будет сохранена перед откатом.",
+    confirmText: "Откатить",
+    danger: false,
+    onConfirm: () => rollbackRevision(revisionId, version)
+  });
 }
 
 // ============================================================
@@ -1070,6 +1304,9 @@ function renderEditor() {
   if (!el) return;
   el.innerHTML = digestCoverEditorHTML() + letterEditorHTML() + state.companies.map(c => companyEditorHTML(c)).join("");
   initTextareas();
+  el.querySelectorAll("input, textarea, select, button").forEach(control => {
+    control.disabled = !!revisionPreview;
+  });
 }
 
 // ============================================================
@@ -1230,6 +1467,12 @@ function renderAuthScreen() {
 }
 
 function renderProjectList() {
+  const query = projectSearch.trim().toLowerCase();
+  const projects = remoteDigests
+    .slice()
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+    .filter(d => !query || (d.title || "Новый проект").toLowerCase().includes(query));
+
   if (!remoteDigests.length) {
     return `
       <div class="project-empty">
@@ -1237,23 +1480,174 @@ function renderProjectList() {
         <span>Создайте первый проект, и он сразу сохранится в базе.</span>
       </div>`;
   }
+  if (!projects.length) {
+    return `
+      <div class="project-empty">
+        <strong>Ничего не найдено</strong>
+        <span>Попробуйте изменить поисковый запрос.</span>
+      </div>`;
+  }
 
-  return remoteDigests
-    .slice()
-    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+  return projects
     .map(d => {
       const active = d.id === currentDigestId;
       const title = d.title || "Новый проект";
       const updated = formatProjectDate(d.updatedAt || d.createdAt);
+      const isRenaming = renamingProjectId === d.id;
       return `
-        <button type="button" class="project-item ${active ? "active" : ""}" onclick="openProject('${escAttr(d.id)}')" ${active ? "disabled" : ""}>
-          <span class="project-item-main">
-            <span class="project-item-title">${escText(title)}</span>
-            <span class="project-item-meta">v${d.currentVersion || 1} · ${escText(updated)}</span>
-          </span>
-          <span class="project-item-action">${active ? "Открыт" : "Открыть"}</span>
-        </button>`;
+        <article class="project-item ${active ? "active" : ""}">
+          <div class="project-item-main">
+            ${isRenaming ? `
+              <input class="project-rename-input" value="${escAttr(renameDraft)}" oninput="renameDraft=this.value" onkeydown="if(event.key==='Enter')finishRenameProject();if(event.key==='Escape')cancelRenameProject()">
+              <div class="project-rename-actions">
+                <button type="button" onclick="finishRenameProject()">Готово</button>
+                <button type="button" onclick="cancelRenameProject()">Отмена</button>
+              </div>` : `
+              <span class="project-item-title">${escText(title)}</span>
+              <span class="project-item-meta">Изменен: ${escText(updated)} · Версий: ${d.currentVersion || 1}</span>`}
+          </div>
+          <div class="project-item-actions">
+            ${active ? `<span class="project-opened">Открыт</span>` : `<button type="button" onclick="openProject('${escAttr(d.id)}')">Открыть</button>`}
+            <button type="button" class="project-menu-button" onclick="toggleProjectMenu('${escAttr(d.id)}')" aria-label="Меню проекта">&#8942;</button>
+            ${projectMenuOpenId === d.id ? `
+              <div class="project-menu">
+                <button type="button" onclick="openProject('${escAttr(d.id)}')">Открыть</button>
+                <button type="button" onclick="startRenameProject('${escAttr(d.id)}')">Переименовать</button>
+                <button type="button" onclick="duplicateProject('${escAttr(d.id)}')">Дублировать</button>
+                <button type="button" onclick="exportProjectJSON('${escAttr(d.id)}')">Экспортировать JSON</button>
+                <button type="button" class="danger-text" onclick="confirmDeleteProject('${escAttr(d.id)}')">Удалить</button>
+              </div>` : ""}
+          </div>
+        </article>`;
     }).join("");
+}
+
+function renderRevisionHistory() {
+  if (!remoteRevisions.length) {
+    return `<div class="panel-empty-line">Версий пока нет.</div>`;
+  }
+  return remoteRevisions
+    .slice()
+    .sort((a, b) => (b.version || 0) - (a.version || 0))
+    .map(revision => {
+      const isCurrent = !revisionPreview && revision.version === currentVersion();
+      const isPreview = revisionPreview && revisionPreview.id === revision.id;
+      return `
+        <div class="revision-item ${isCurrent || isPreview ? "active" : ""}">
+          <div>
+            <strong>v${revision.version}</strong>
+            <span>${escText(formatProjectDate(revision.createdAt))}${isCurrent ? " · текущая" : ""}${isPreview ? " · просмотр" : ""}</span>
+          </div>
+          <div class="revision-actions">
+            ${isCurrent ? `<span class="project-opened">Текущая</span>` : `<button type="button" onclick="openRevisionPreview('${escAttr(revision.id)}')">Открыть</button>`}
+            ${isCurrent ? "" : `<button type="button" onclick="confirmRollbackRevision('${escAttr(revision.id)}', ${revision.version})">Откатить</button>`}
+          </div>
+        </div>`;
+    }).join("");
+}
+
+function renderConfirmDialog() {
+  if (!confirmDialog) return "";
+  return `
+    <div class="confirm-backdrop">
+      <div class="confirm-dialog">
+        <h3>${escText(confirmDialog.title || "Подтвердите действие")}</h3>
+        <p>${escText(confirmDialog.message || "")}</p>
+        <div class="confirm-actions">
+          <button type="button" onclick="closeConfirmDialog()">Отмена</button>
+          <button type="button" class="${confirmDialog.danger ? "danger-action" : "primary-action"}" onclick="acceptConfirmDialog()">${escText(confirmDialog.confirmText || "Подтвердить")}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderProjectsDrawer() {
+  if (!projectsPanelOpen) return "";
+  const current = currentRemoteDigest();
+  const title = projectTitle();
+  const updated = current ? formatProjectDate(current.updatedAt || current.createdAt) : "без даты";
+  const currentIsRenaming = renamingProjectId === currentDigestId;
+  return `
+    <div class="projects-drawer-backdrop" onclick="closeProjectsPanel()">
+      <aside class="projects-drawer" onclick="event.stopPropagation()">
+        <header class="drawer-header">
+          <div>
+            <h2>Проекты</h2>
+            <p>Проекты хранятся в вашем аккаунте. Другие пользователи не могут видеть, открывать или изменять ваши проекты.</p>
+            <span>Аккаунт: ${escText(currentUser.email || "")}</span>
+          </div>
+          <button type="button" class="drawer-close" onclick="closeProjectsPanel()">Закрыть</button>
+        </header>
+
+        <section class="drawer-section current-project-section">
+          <div class="drawer-section-title">Текущий проект</div>
+          ${currentIsRenaming ? `
+            <input class="drawer-title-input" value="${escAttr(renameDraft)}" oninput="renameDraft=this.value" onkeydown="if(event.key==='Enter')finishRenameProject();if(event.key==='Escape')cancelRenameProject()">
+            <div class="drawer-action-row">
+              <button type="button" class="primary-action" onclick="finishRenameProject()">Готово</button>
+              <button type="button" onclick="cancelRenameProject()">Отмена</button>
+            </div>` : `
+            <h3>${escText(title)}</h3>`}
+          <div class="drawer-status-grid">
+            <span>Статус</span><strong id="drawerSaveStatusPill" class="save-dot ${saveStatusClass()}"><span id="drawerSaveStatusText">${escText(saveStatusSummary())}</span></strong>
+            <span>Последнее сохранение</span><strong>${escText(updated)}</strong>
+            <span>Автосохранение</span>
+            <label class="switch-control">
+              <input id="autosaveToggle" type="checkbox" ${autosaveEnabled ? "checked" : ""} onchange="toggleAutosave()" ${revisionPreview ? "disabled" : ""}>
+              <span></span>
+            </label>
+          </div>
+          ${revisionPreview ? `
+            <div class="revision-preview-banner">
+              <strong>Просмотр v${revisionPreview.version}</strong>
+              <span>Редактирование и автосохранение временно выключены.</span>
+              <div class="drawer-action-row">
+                <button type="button" onclick="returnToCurrentRevision()">Вернуться к текущей</button>
+                <button type="button" class="primary-action" onclick="confirmRollbackRevision('${escAttr(revisionPreview.id)}', ${revisionPreview.version})">Откатить</button>
+              </div>
+            </div>` : ""}
+          <div class="drawer-action-row">
+            <button id="manualSaveBtn" type="button" class="primary-action" onclick="saveRemoteNow()" ${savingRemote || revisionPreview ? "disabled" : ""}>Сохранить сейчас</button>
+            <button type="button" onclick="startRenameProject('${escAttr(currentDigestId)}')" ${revisionPreview ? "disabled" : ""}>Переименовать</button>
+            <button type="button" onclick="newRemoteDigest()">Создать новый проект</button>
+          </div>
+          <div class="drawer-action-row subtle-actions">
+            <button type="button" onclick="undoAction()" ${localHistory.length <= 1 || revisionPreview ? "disabled" : ""}>Назад</button>
+            <button type="button" onclick="redoAction()" ${redoHistory.length && !revisionPreview ? "" : "disabled"}>Вперед</button>
+          </div>
+        </section>
+
+        <section class="drawer-section">
+          <div class="projects-heading">
+            <span>Мои проекты</span>
+            <button type="button" onclick="newRemoteDigest()">+ Новый проект</button>
+          </div>
+          <input class="project-search" type="search" placeholder="Поиск проекта..." value="${escAttr(projectSearch)}" oninput="setProjectSearch(this.value)">
+          <div id="projectList" class="project-list">${renderProjectList()}</div>
+        </section>
+
+        <section class="drawer-section">
+          <div class="drawer-section-title">История версий</div>
+          <div class="revision-list">${renderRevisionHistory()}</div>
+        </section>
+
+        <section class="drawer-section compact-section">
+          <div class="drawer-section-title">Дополнительно</div>
+          <div class="drawer-action-row">
+            <button type="button" onclick="importJSON()">Импорт JSON</button>
+            <button type="button" onclick="exportProjectJSON('${escAttr(currentDigestId)}')">Экспорт текущего проекта</button>
+          </div>
+        </section>
+
+        <section class="drawer-section danger-zone">
+          <div class="drawer-section-title">Опасная зона</div>
+          <div class="drawer-action-row">
+            <button type="button" onclick="confirmClearCurrentProject()">Очистить текущий проект</button>
+            <button type="button" onclick="confirmDeleteProject('${escAttr(currentDigestId)}')">Удалить проект</button>
+          </div>
+        </section>
+      </aside>
+    </div>`;
 }
 
 function renderAccountBar() {
@@ -1266,69 +1660,23 @@ function renderAccountBar() {
     return;
   }
 
-  const revisionOptions = remoteRevisions.length
-    ? remoteRevisions.map(r => {
-        const date = formatProjectDate(r.createdAt);
-        return `<option value="${escAttr(r.id)}">v${r.version} · ${escText(r.action || "autosave")} · ${escText(date)}</option>`;
-      }).join("")
-    : `<option value="">Версий пока нет</option>`;
-  const current = currentRemoteDigest();
-  const userLabel = currentUser.name || currentUser.email || "Аккаунт";
-  const updated = current ? formatProjectDate(current.updatedAt || current.createdAt) : "без даты";
+  renderShellState();
+  const title = projectTitle();
 
   el.innerHTML = `
-    <section class="project-panel">
-      <div class="project-topline">
-        <div class="account-user">
-          <span>${escText(userLabel)}</span>
-          <small>${escText(currentUser.email || "")}</small>
-        </div>
-        <button type="button" class="link-button" onclick="logoutAccount()">Выйти</button>
+    <section class="workspace-project-bar">
+      <div class="workspace-project-current">
+        <span class="workspace-project-title">${escText(title)}</span>
+        <span id="mainSaveStatusPill" class="main-save-status ${saveStatusClass()}">
+          <span class="status-dot"></span>
+          <span id="mainSaveStatusText">${escText(saveStatusSummary())}</span>
+        </span>
+        ${saveStatusClass() === "error" ? `<button type="button" class="retry-save-button" onclick="saveRemoteNow()">Повторить</button>` : ""}
       </div>
-
-      <div class="project-title-row">
-        <label class="project-title-label">
-          <span>Текущий проект</span>
-          <input id="projectTitleInput" class="project-title-input" type="text" value="${escAttr(projectTitle())}" onchange="renameCurrentProject(this.value)" onkeydown="if(event.key==='Enter')this.blur()">
-        </label>
-        <div id="saveStatusPill" class="save-status ${saveStatusClass()}">
-          <span id="saveStatusText">${escText(saveStatus || "Сохранено v" + currentVersion())}</span>
-        </div>
-      </div>
-
-      <div class="primary-actions">
-        <button id="manualSaveBtn" type="button" class="primary-action" onclick="saveRemoteNow()" ${savingRemote ? "disabled" : ""}>Сохранить</button>
-        <label class="autosave-control">
-          <input id="autosaveToggle" type="checkbox" ${autosaveEnabled ? "checked" : ""} onchange="toggleAutosave()">
-          <span>Автосохранение</span>
-        </label>
-        <button type="button" onclick="newRemoteDigest()">Новый проект</button>
-      </div>
-
-      <div class="secondary-actions">
-        <button type="button" onclick="exportJSON()">Экспорт JSON</button>
-        <button type="button" onclick="importJSON()">Импорт JSON</button>
-        <button type="button" onclick="undoAction()" ${localHistory.length <= 1 ? "disabled" : ""}>Назад</button>
-        <button type="button" onclick="redoAction()" ${redoHistory.length ? "" : "disabled"}>Вперед</button>
-        <button type="button" onclick="clearAll()">Очистить</button>
-      </div>
-
-      <div class="project-version-row">
-        <div class="project-version-meta">v${currentVersion()} · обновлен ${escText(updated)}</div>
-        <div class="revision-tools">
-          <select id="revisionSelect">${revisionOptions}</select>
-          <button type="button" onclick="rollbackRemoteRevision()" ${remoteRevisions.length ? "" : "disabled"}>Откатить</button>
-        </div>
-      </div>
-
-      <div class="projects-panel">
-        <div class="projects-heading">
-          <span>Проекты</span>
-          <small>${remoteDigests.length}</small>
-        </div>
-        <div class="project-list">${renderProjectList()}</div>
-      </div>
-    </section>`;
+      <button type="button" class="projects-open-button" onclick="openProjectsPanel()">Проекты</button>
+    </section>
+    ${renderProjectsDrawer()}
+    ${renderConfirmDialog()}`;
 }
 
 // ============================================================
@@ -1345,11 +1693,29 @@ function render(persist = true) {
 //   PERSIST / EXPORT
 // ============================================================
 function exportJSON() {
-  const blob = new Blob([JSON.stringify(stateEnvelope(), null, 2)], { type: "application/json" });
+  exportProjectJSON(currentDigestId);
+}
+async function exportProjectJSON(projectId) {
+  let title = projectTitle();
+  let exportedState = state;
+  if (authToken && projectId && projectId !== currentDigestId) {
+    try {
+      const data = await apiRequest("/digests/" + projectId);
+      title = data.digest.title || title;
+      exportedState = data.digest.state;
+    } catch (err) {
+      console.error("Project export failed:", err);
+      setSaveStatus("Ошибка экспорта JSON");
+      return;
+    }
+  }
+  const envelope = { schemaVersion: 1, exportedAt: new Date().toISOString(), title, state: exportedState };
+  const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = safeFileTitle(projectTitle()) + '.json';
+  a.download = safeFileTitle(title) + '.json';
   a.click();
+  URL.revokeObjectURL(a.href);
 }
 function importJSON() { document.getElementById("fileInput").click(); }
 document.getElementById("fileInput").addEventListener("change", async (e) => {
@@ -1496,9 +1862,7 @@ async function exportPNG() {
 }
 
 function clearAll() {
-  if (!confirm("Сбросить все данные?")) return;
-  state.companies.forEach(c => { c.blocks = []; c.collapsed = true; });
-  render();
+  confirmClearCurrentProject();
 }
 
 // ============================================================

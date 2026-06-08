@@ -1557,7 +1557,6 @@ function metricGridHTML(tiles) {
 
 function newsItemHTML(it) {
   const photos = it.photos || [];
-  const ratio = it.photoRatio || '4/3';
   const textBlock = `
     ${it.title ? `<h4>${escText(it.title)}</h4>` : ""}
     ${it.text  ? `<p>${escText(it.text).replace(/\n/g, '<br>')}</p>`   : ""}`;
@@ -1570,7 +1569,7 @@ function newsItemHTML(it) {
   }
   const photoGrid = photos.length ? `
     <div class="pt-photos n${Math.min(photos.length, 4)}">
-      ${photos.slice(0, 4).map(p => `<div class="pt-img" style="aspect-ratio:${ratio}"><img src="${escAttr(p)}" alt=""></div>`).join("")}
+      ${photos.slice(0, 4).map(p => `<div class="pt-img"><img src="${escAttr(p)}" alt=""></div>`).join("")}
     </div>` : "";
   return `
     <div class="news-block">
@@ -1590,7 +1589,7 @@ function pageBlock(compKey, block) {
         : [{ value: it.value||'', label: it.label||'', delta: it.delta||'', direction: it.direction||'up' }];
       return metricGridHTML(tiles);
     }
-    return `<div class="news-block">${newsItemHTML(it)}</div>`;
+    return newsItemHTML(it);
   }).join('');
 
   const footer = block.comment ? `<div class="footer-note">ⓘ ${escText(block.comment)}</div>` : "";

@@ -768,7 +768,6 @@ input[type=file] { font-size: 12px; }
 .news-with-photo > div:first-child p  { margin: 0; font-size: 18px; font-family: "IBMPlex", sans-serif; font-weight: 400; line-height: 1.45; color: #4D4D4D; text-align: left; }
 .news-with-photo .photo-side {
   border-radius: 10px;
-  min-height: 200px;
   overflow: hidden;
   background: #fff;
   display: flex;
@@ -776,9 +775,10 @@ input[type=file] { font-size: 12px; }
   justify-content: center;
 }
 .news-with-photo .photo-side img {
-  width: 100%;
-  height: 100%;
-  min-height: 200px;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 320px;
   object-fit: contain;
   display: block;
 }
@@ -806,13 +806,19 @@ input[type=file] { font-size: 12px; }
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
 }
 .pt-photos .pt-img img {
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 360px;
   object-fit: contain;
   display: block;
 }
+.pt-photos.n2 .pt-img img { max-height: 280px; }
+.pt-photos.n3 .pt-img img,
+.pt-photos.n4 .pt-img img { max-height: 220px; }
 /* Color themes (companies) */
 .theme-volkov   { background: #f4a93d; }
 .theme-kalina   { background: #d63031; }

@@ -407,6 +407,17 @@ input[type=file] { font-size: 12px; }
   font-family: monospace;
   letter-spacing: 0.06em;
 }
+.toolbar-id-admin {
+  background: rgba(240, 80, 70, 0.12);
+  border-color: rgba(240, 80, 70, 0.25);
+}
+.toolbar-id-admin-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f05046;
+}
 .toolbar-id-copy {
   background: none;
   border: none;

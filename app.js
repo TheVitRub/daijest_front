@@ -74,7 +74,14 @@ let saveStatus = "";
 let authMode = "login";
 let authError = "";
 let authBusy = false;
-let authDraft = { email: "", name: "", password: "", confirm: "" };
+let authDraft = { email: "", name: "", password: "", confirm: "", code: "" };
+let adminPanelOpen = false;
+let adminUsers = [];
+let adminNewUserName = "";
+let adminBusy = false;
+let adminError = "";
+let currentDigestType = "analytical";
+let newProjectType = "analytical";
 let projectsPanelOpen = false;
 let projectSearch = "";
 let projectMenuOpenId = "";
@@ -323,11 +330,17 @@ function setAuthMode(mode) {
 }
 function authErrorMessage(message) {
   if (/invalid email or password/i.test(message)) return "Неверный email или пароль.";
+  if (/invalid access code/i.test(message)) return "Неверный код доступа.";
   if (/already registered/i.test(message)) return "Такой email уже зарегистрирован.";
   if (/at least 8/i.test(message)) return "Пароль должен быть не короче 8 символов.";
   return message || "Не удалось выполнить запрос.";
 }
 function validateAuthForm(email, password, confirm) {
+  if (authMode === "code") {
+    const code = (document.getElementById("authCode")?.value || authDraft.code || "").trim();
+    if (!/^\d{8}$/.test(code)) return "Введите 8-значный цифровой код.";
+    return "";
+  }
   if (!email.trim() || !email.includes("@")) return "Введите корректный email.";
   if (password.length < 8) return "Пароль должен быть не короче 8 символов.";
   if (authMode === "register" && password !== confirm) return "Пароли не совпадают.";
@@ -340,7 +353,8 @@ async function submitAuthForm(event) {
   const name = document.getElementById("authName")?.value || "";
   const password = document.getElementById("authPassword")?.value || "";
   const confirm = document.getElementById("authPasswordConfirm")?.value || "";
-  authDraft = { email, name, password, confirm };
+  const code = (document.getElementById("authCode")?.value || "").trim();
+  authDraft = { email, name, password, confirm, code };
   const validationError = validateAuthForm(email, password, confirm);
   if (validationError) {
     authError = validationError;
@@ -353,7 +367,14 @@ async function submitAuthForm(event) {
   renderAuthScreen();
   try {
     const path = authMode === "register" ? "/auth/register" : "/auth/login";
-    const body = authMode === "register" ? { email, name, password } : { email, password };
+    let body;
+    if (authMode === "code") {
+      body = { code };
+    } else if (authMode === "register") {
+      body = { email, name, password };
+    } else {
+      body = { email, password };
+    }
     const data = await apiRequest(path, {
       method: "POST",
       body: JSON.stringify(body)
@@ -394,6 +415,12 @@ function logoutAccount() {
   confirmDialog = null;
   newProjectDialogOpen = false;
   newProjectTitle = "";
+  newProjectType = "analytical";
+  currentDigestType = "analytical";
+  adminPanelOpen = false;
+  adminUsers = [];
+  adminNewUserName = "";
+  adminError = "";
   historyProjectId = "";
   historyRevisions = [];
   historyLoading = false;
@@ -454,7 +481,7 @@ async function createRemoteDigest(action) {
   const title = projectTitle();
   const data = await apiRequest("/digests", {
     method: "POST",
-    body: JSON.stringify({ title, state, action: action || "created" })
+    body: JSON.stringify({ title, state, action: action || "created", digestType: currentDigestType || "analytical" })
   });
   currentDigestId = data.digest.id;
   currentProjectTitle = data.digest.title || title;
@@ -492,8 +519,10 @@ function closeNewProjectDialog() {
 }
 async function createProjectFromDialog() {
   const title = (newProjectTitle || "").trim() || "Новый проект";
+  currentDigestType = newProjectType || "analytical";
   newProjectDialogOpen = false;
   newProjectTitle = "";
+  newProjectType = "analytical";
   try {
     await newRemoteDigest(title);
   } catch (err) {
@@ -569,7 +598,7 @@ async function saveRemoteDraft(action, force) {
   try {
     const data = await apiRequest("/digests/" + currentDigestId + "/autosave", {
       method: "PUT",
-      body: JSON.stringify({ title, state, action: action || "autosave" })
+      body: JSON.stringify({ title, state, action: action || "autosave", digestType: currentDigestType || "analytical" })
     });
     lastRemoteSnapshot = snapshot;
     lastRemoteTitle = title;
@@ -600,6 +629,7 @@ async function loadRemoteDigest(digestId, quiet) {
     safeStorageSet(CURRENT_DIGEST_KEY, currentDigestId);
     loadState(data.digest.state);
     currentProjectTitle = data.digest.title || digestTitle();
+    currentDigestType = data.digest.digestType || "analytical";
     lastRemoteSnapshot = captureState();
     lastRemoteTitle = currentProjectTitle;
     projectDirty = false;
@@ -1631,6 +1661,7 @@ function renderAuthScreen() {
   }
 
   const isRegister = authMode === "register";
+  const isCode = authMode === "code";
   el.innerHTML = `
     <div class="auth-card">
       <div class="auth-brand">
@@ -1640,31 +1671,42 @@ function renderAuthScreen() {
           <p>Войдите, чтобы сохранять проекты в базе и возвращаться к ним с любого устройства.</p>
         </div>
       </div>
-      <div class="auth-tabs" role="tablist">
-        <button type="button" class="${!isRegister ? "active" : ""}" onclick="setAuthMode('login')">Вход</button>
+      <div class="auth-tabs auth-tabs-three" role="tablist">
+        <button type="button" class="${!isRegister && !isCode ? "active" : ""}" onclick="setAuthMode('login')">Вход</button>
         <button type="button" class="${isRegister ? "active" : ""}" onclick="setAuthMode('register')">Регистрация</button>
+        <button type="button" class="${isCode ? "active" : ""}" onclick="setAuthMode('code')">По коду</button>
       </div>
       <form class="auth-form" onsubmit="submitAuthForm(event)">
-        <label>Email
-          <input id="authEmail" type="email" autocomplete="email" value="${escAttr(authDraft.email)}" oninput="authDraft.email=this.value" placeholder="name@example.com">
-        </label>
-        ${isRegister ? `
-          <label>Имя
-            <input id="authName" type="text" autocomplete="name" value="${escAttr(authDraft.name)}" oninput="authDraft.name=this.value" placeholder="Редакция">
-          </label>` : ""}
-        <label>Пароль
-          <input id="authPassword" type="password" autocomplete="${isRegister ? "new-password" : "current-password"}" value="${escAttr(authDraft.password)}" oninput="authDraft.password=this.value" placeholder="минимум 8 символов">
-        </label>
-        ${isRegister ? `
-          <label>Повторите пароль
-            <input id="authPasswordConfirm" type="password" autocomplete="new-password" value="${escAttr(authDraft.confirm)}" oninput="authDraft.confirm=this.value" placeholder="еще раз">
-          </label>` : ""}
+        ${isCode ? `
+          <label>Код доступа
+            <input id="authCode" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" value="${escAttr(authDraft.code)}" oninput="authDraft.code=this.value" placeholder="8 цифр">
+          </label>
+        ` : `
+          <label>Email
+            <input id="authEmail" type="email" autocomplete="email" value="${escAttr(authDraft.email)}" oninput="authDraft.email=this.value" placeholder="name@example.com">
+          </label>
+          ${isRegister ? `
+            <label>Имя
+              <input id="authName" type="text" autocomplete="name" value="${escAttr(authDraft.name)}" oninput="authDraft.name=this.value" placeholder="Редакция">
+            </label>` : ""}
+          <label>Пароль
+            <input id="authPassword" type="password" autocomplete="${isRegister ? "new-password" : "current-password"}" value="${escAttr(authDraft.password)}" oninput="authDraft.password=this.value" placeholder="минимум 8 символов">
+          </label>
+          ${isRegister ? `
+            <label>Повторите пароль
+              <input id="authPasswordConfirm" type="password" autocomplete="new-password" value="${escAttr(authDraft.confirm)}" oninput="authDraft.confirm=this.value" placeholder="еще раз">
+            </label>` : ""}
+        `}
         ${authError ? `<div class="auth-error">${escText(authError)}</div>` : ""}
         <button class="auth-submit" type="submit" ${authBusy ? "disabled" : ""}>
           ${authBusy ? "Подождите..." : (isRegister ? "Создать аккаунт" : "Войти")}
         </button>
       </form>
     </div>`;
+}
+
+function digestTypeLabel(type) {
+  return { analytical: "Аналитический", farming: "Фермерский", company_group: "Группа компаний" }[type] || "";
 }
 
 function renderProjectList() {
@@ -1704,7 +1746,10 @@ function renderProjectList() {
                 <button type="button" onclick="finishRenameProject()">Готово</button>
                 <button type="button" onclick="cancelRenameProject()">Отмена</button>
               </div>` : `
-              <span class="project-item-title">${escText(title)}</span>
+              <div class="project-item-title-row">
+                <span class="project-item-title">${escText(title)}</span>
+                ${d.digestType ? `<span class="project-type-badge">${escText(digestTypeLabel(d.digestType))}</span>` : ""}
+              </div>
               <span class="project-item-meta">Изменен: ${escText(updated)}</span>`}
           </div>
           <div class="project-item-actions">
@@ -1784,9 +1829,16 @@ function renderNewProjectDialog() {
   return `
     <div class="confirm-backdrop" onclick="closeNewProjectDialog()">
       <form class="confirm-dialog project-name-dialog" onclick="event.stopPropagation()" onsubmit="event.preventDefault();createProjectFromDialog()">
-        <h3>Название проекта</h3>
-        <label>
+        <h3>Новый проект</h3>
+        <label>Название
           <input class="drawer-title-input" value="${escAttr(newProjectTitle)}" oninput="newProjectTitle=this.value" placeholder="Новый проект" autofocus>
+        </label>
+        <label>Тип дайджеста
+          <select class="new-project-type-select" value="${escAttr(newProjectType)}" onchange="newProjectType=this.value">
+            <option value="analytical" ${newProjectType === "analytical" ? "selected" : ""}>Аналитический</option>
+            <option value="farming" ${newProjectType === "farming" ? "selected" : ""}>Фермерский</option>
+            <option value="company_group" ${newProjectType === "company_group" ? "selected" : ""}>Группа компаний</option>
+          </select>
         </label>
         <div class="confirm-actions">
           <button type="button" onclick="closeNewProjectDialog()">Отмена</button>
@@ -1847,9 +1899,83 @@ function renderProjectsDrawer() {
           </div>
           <div id="projectList" class="project-list">${renderProjectList()}</div>
         </section>
+        ${renderAdminSection()}
         <div id="projectMenuLayerHost">${renderProjectMenu()}</div>
       </aside>
     </div>`;
+}
+
+// ============================================================
+//   ADMIN PANEL
+// ============================================================
+function openAdminPanel() {
+  adminPanelOpen = true;
+  loadAdminUsers();
+  renderAccountBar();
+}
+function closeAdminPanel() {
+  adminPanelOpen = false;
+  adminError = "";
+  renderAccountBar();
+}
+async function loadAdminUsers() {
+  try {
+    const data = await apiRequest("/admin/users");
+    adminUsers = data.users || [];
+  } catch (err) {
+    console.error("loadAdminUsers:", err);
+  }
+  renderAccountBar();
+}
+async function createAdminUser() {
+  const name = adminNewUserName.trim();
+  if (!name || adminBusy) return;
+  adminBusy = true;
+  adminError = "";
+  renderAccountBar();
+  try {
+    await apiRequest("/admin/users", { method: "POST", body: JSON.stringify({ name }) });
+    adminNewUserName = "";
+    await loadAdminUsers();
+  } catch (err) {
+    adminError = err.message || "Ошибка создания пользователя";
+  } finally {
+    adminBusy = false;
+    renderAccountBar();
+  }
+}
+function renderAdminSection() {
+  if (!currentUser?.isAdmin) return "";
+  if (!adminPanelOpen) {
+    return `
+      <section class="drawer-section">
+        <div class="projects-heading plain-heading"><span>Администратор</span></div>
+        <button type="button" class="drawer-new-project" onclick="openAdminPanel()">Управление пользователями</button>
+      </section>`;
+  }
+  const rows = adminUsers.map(u => `
+    <div class="admin-user-row">
+      <span class="admin-user-name">${escText(u.name || "—")}</span>
+      ${u.accessCode
+        ? `<code class="admin-user-code">${escText(u.accessCode)}</code>`
+        : `<span class="admin-user-email">${escText(u.email || "—")}</span>`}
+    </div>`).join("");
+  return `
+    <section class="drawer-section">
+      <div class="projects-heading plain-heading">
+        <span>Пользователи</span>
+        <button type="button" class="drawer-close-small" onclick="closeAdminPanel()">Скрыть</button>
+      </div>
+      <form class="admin-create-form" onsubmit="event.preventDefault(); createAdminUser()">
+        <input class="project-search" style="flex:1;margin:0" type="text" placeholder="Имя нового пользователя..." value="${escAttr(adminNewUserName)}" oninput="adminNewUserName=this.value">
+        <button type="submit" class="admin-create-btn" ${adminBusy ? "disabled" : ""}>${adminBusy ? "..." : "Создать"}</button>
+      </form>
+      ${adminError ? `<div class="auth-error" style="margin:0 0 8px">${escText(adminError)}</div>` : ""}
+      <div class="admin-user-list">
+        ${adminUsers.length ? rows : `<div class="panel-empty-line">Нет пользователей</div>`}
+      </div>
+      <button type="button" style="margin-top:6px;font-size:12px;color:#888;background:none;border:0;cursor:pointer;padding:4px 0" onclick="loadAdminUsers()">Обновить список</button>
+    </section>`;
 }
 
 function renderAccountBar() {

@@ -862,18 +862,8 @@ input[type=file] { font-size: 12px; }
 .pt-text .pt-ic { font-size: 20px; flex-shrink: 0; }
 .pt-text h4 { margin: 0 0 3px 0; font-size: 14px; font-weight: 700; }
 .pt-text p { margin: 0; font-size: 12.5px; line-height: 1.4; color: #333; }
-.pt-photos { display: grid; gap: 8px; }
-.pt-photos.n1 { grid-template-columns: 1fr; }
-.pt-photos.n2 { grid-template-columns: 1fr 1fr; }
-.pt-photos.n3 { grid-template-columns: 1fr 1fr 1fr; }
-.pt-photos.n4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-.news-with-photo .side-photos {
-  margin: 0;
-}
-.news-with-photo .side-photos.n3,
-.news-with-photo .side-photos.n4 {
-  grid-template-columns: 1fr 1fr;
-}
+.pt-photos { display: flex; flex-direction: column; gap: 8px; }
+.news-with-photo .side-photos { margin: 0; }
 .pt-photos .pt-img {
   border-radius: 8px;
   overflow: hidden;
@@ -885,10 +875,8 @@ input[type=file] { font-size: 12px; }
 }
 .pt-photos .pt-img img {
   width: 100%;
-  height: auto;
-  max-width: 100%;
-  max-height: none;
-  object-fit: contain;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 /* Color themes (companies) */
@@ -903,68 +891,6 @@ input[type=file] { font-size: 12px; }
 .theme-kalina .kpi-tile .label,
 .theme-zarinsk .kpi-tile .value,
 .theme-zarinsk .kpi-tile .label { color: #1a1a1a; }
-/* PDF-print sizing */
-@page { size: 1180px 700px; margin: 0; }
-@media print {
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body { background: white !important; margin: 0 !important; }
-  .app { display: block !important; }
-  .editor { display: none !important; }
-  .preview-pane { padding: 0 !important; background: white !important; overflow: visible !important; width: 1180px !important; height: auto !important; }
-  .page { box-shadow: none !important; margin: 0 !important; page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid; }
-  .empty-state { display: none !important; }
-  /* Force theme backgrounds — Chrome suppresses background-color without these */
-  .theme-volkov  { background: #f4a93d !important; }
-  .theme-kalina  { background: #d63031 !important; }
-  .theme-broiler { background: #6fa86b !important; }
-  .theme-tochka  { background: #E51C4C !important; }
-  .theme-zarinsk { background: #c0392b !important; }
-  .letter-body-card { background: #ffffff !important; }
-  .kpi-tile      { background: #ffffff !important; }
-  .ach-item      { background: #ffffff !important; }
-  .news-with-photo .news-side-text { background: #ffffff !important; }
-  .print-tip { display: none !important; }
-}
-/* Print tip overlay */
-.print-tip {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-  z-index: 99999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.print-tip-box {
-  background: #fff;
-  border-radius: 16px;
-  padding: 28px 36px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.25);
-  max-width: 360px;
-  text-align: left;
-}
-.print-tip-title {
-  font-size: 17px;
-  font-weight: 700;
-  margin-bottom: 16px;
-  color: #1a1a1a;
-}
-.print-tip-steps {
-  margin: 0 0 14px 0;
-  padding-left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: 14px;
-  color: #1a1a1a;
-  line-height: 1.4;
-}
-.print-tip-sub {
-  font-size: 12px;
-  color: #65676b;
-  border-top: 1px solid #e4e6eb;
-  padding-top: 12px;
-}
 .empty-state {
   text-align: center;
   color: rgba(255,255,255,0.25);

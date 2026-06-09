@@ -1266,7 +1266,8 @@ async function loadItemPhotos(compKey, blockId, idx, files) {
   const b = getBlock(compKey, blockId);
   if (!b || !b.items[idx]) return;
   if (!b.items[idx].photos) b.items[idx].photos = [];
-  for (const f of files) b.items[idx].photos.push(await readFileAsDataURL(f));
+  const ratio = _ratioCtx.ratio || b.items[idx].photoRatio || '4/3';
+  for (const f of files) b.items[idx].photos.push({ src: await readFileAsDataURL(f), ratio });
   render();
 }
 function removeItemPhoto(compKey, blockId, itemIdx, photoIdx) {
@@ -1283,6 +1284,7 @@ function showRatioModal(compKey, blockId, idx) {
 }
 function confirmRatio(ratio) {
   const { compKey, blockId, idx } = _ratioCtx;
+  _ratioCtx.ratio = ratio;
   const b = getBlock(compKey, blockId);
   if (b && b.items[idx]) { b.items[idx].photoRatio = ratio; }
   document.getElementById('ratioModal').style.display = 'none';
@@ -1379,11 +1381,13 @@ function removeLetterCover() {
 // ============================================================
 function itemEditorHTML(compKey, blockId, item, idx) {
   if (item.kind === "news") {
-    const photos = (item.photos || []).map((p, pi) => `
-      <div class="media-thumb">
-        <img src="${p}">
+    const photos = (item.photos || []).map((p, pi) => {
+      const src = typeof p === 'string' ? p : p.src;
+      return `<div class="media-thumb">
+        <img src="${src}">
         <button class="media-del" onclick="removeItemPhoto('${compKey}','${blockId}',${idx},${pi})">✕</button>
-      </div>`).join("");
+      </div>`;
+    }).join("");
     return `
       <div class="item-block" ${itemDragAttrs(compKey, blockId, idx)}>
         <div class="item-del-row">
@@ -1576,8 +1580,12 @@ function newsItemHTML(it) {
     ${it.title ? `<h4>${escText(it.title)}</h4>` : ""}
     ${it.text  ? `<p>${escText(it.text).replace(/\n/g, '<br>')}</p>`   : ""}`;
   const photoGrid = photos.length ? `
-    <div class="pt-photos n${Math.min(photos.length, 4)}">
-      ${photos.slice(0, 4).map(p => `<div class="pt-img"><img src="${escAttr(p)}" alt=""></div>`).join("")}
+    <div class="pt-photos">
+      ${photos.slice(0, 4).map(p => {
+        const src = typeof p === 'string' ? p : p.src;
+        const r   = typeof p === 'string' ? (it.photoRatio || '4/3') : (p.ratio || '4/3');
+        return `<div class="pt-img" style="aspect-ratio:${r}"><img src="${escAttr(src)}" alt=""></div>`;
+      }).join("")}
     </div>` : "";
   if (photos.length && it.photoLayout === 'side') {
     return `

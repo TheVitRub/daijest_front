@@ -1956,9 +1956,52 @@ function renderAdminSection() {
     </section>`;
 }
 
+function renderToolbar() {
+  const userInfo = document.getElementById("toolbarUserInfo");
+  const logoutBtn = document.getElementById("toolbarLogoutBtn");
+  if (!userInfo) return;
+  if (!currentUser) {
+    userInfo.innerHTML = "";
+    if (logoutBtn) logoutBtn.hidden = true;
+    return;
+  }
+  if (logoutBtn) logoutBtn.hidden = false;
+  const displayId = currentUser.accessCode || currentUser.email || "";
+  const label = currentUser.accessCode ? "Код" : "Email";
+  userInfo.innerHTML = displayId ? `
+    <div class="toolbar-id">
+      <span class="toolbar-id-label">${escText(label)}</span>
+      <span class="toolbar-id-value">${escText(displayId)}</span>
+      <button type="button" class="toolbar-id-copy" onclick="copyUserId()" title="Скопировать">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>` : "";
+}
+
+function copyUserId() {
+  const displayId = currentUser?.accessCode || currentUser?.email || "";
+  if (!displayId) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(displayId).then(() => setSaveStatus("Скопировано"));
+  } else {
+    const el = document.createElement("textarea");
+    el.value = displayId;
+    Object.assign(el.style, { position: "fixed", opacity: "0" });
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+    setSaveStatus("Скопировано");
+  }
+}
+
 function renderAccountBar() {
   const el = document.getElementById("accountBar");
   if (!el) return;
+  renderToolbar();
   renderAuthScreen();
 
   if (!currentUser) {

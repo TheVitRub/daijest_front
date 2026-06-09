@@ -71,7 +71,7 @@ let lastRemoteSnapshot = "";
 let lastRemoteTitle = "";
 let currentProjectTitle = "";
 let saveStatus = "";
-let authMode = "login";
+let authMode = "code";
 let authError = "";
 let authBusy = false;
 let authDraft = { email: "", name: "", password: "", confirm: "", code: "" };
@@ -1660,48 +1660,26 @@ function renderAuthScreen() {
     return;
   }
 
-  const isRegister = authMode === "register";
-  const isCode = authMode === "code";
+  const registerHref = PUBLIC_BASE_PATH ? PUBLIC_BASE_PATH + "/register.html" : "register.html";
   el.innerHTML = `
     <div class="auth-card">
       <div class="auth-brand">
         <img src="logos/logo-skladka.svg" alt="">
         <div>
           <h1>Складка</h1>
-          <p>Войдите, чтобы сохранять проекты в базе и возвращаться к ним с любого устройства.</p>
+          <p>Введите код доступа, чтобы войти.</p>
         </div>
       </div>
-      <div class="auth-tabs auth-tabs-three" role="tablist">
-        <button type="button" class="${!isRegister && !isCode ? "active" : ""}" onclick="setAuthMode('login')">Вход</button>
-        <button type="button" class="${isRegister ? "active" : ""}" onclick="setAuthMode('register')">Регистрация</button>
-        <button type="button" class="${isCode ? "active" : ""}" onclick="setAuthMode('code')">По коду</button>
-      </div>
       <form class="auth-form" onsubmit="submitAuthForm(event)">
-        ${isCode ? `
-          <label>Код доступа
-            <input id="authCode" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" value="${escAttr(authDraft.code)}" oninput="authDraft.code=this.value" placeholder="8 цифр">
-          </label>
-        ` : `
-          <label>Email
-            <input id="authEmail" type="email" autocomplete="email" value="${escAttr(authDraft.email)}" oninput="authDraft.email=this.value" placeholder="name@example.com">
-          </label>
-          ${isRegister ? `
-            <label>Имя
-              <input id="authName" type="text" autocomplete="name" value="${escAttr(authDraft.name)}" oninput="authDraft.name=this.value" placeholder="Редакция">
-            </label>` : ""}
-          <label>Пароль
-            <input id="authPassword" type="password" autocomplete="${isRegister ? "new-password" : "current-password"}" value="${escAttr(authDraft.password)}" oninput="authDraft.password=this.value" placeholder="минимум 8 символов">
-          </label>
-          ${isRegister ? `
-            <label>Повторите пароль
-              <input id="authPasswordConfirm" type="password" autocomplete="new-password" value="${escAttr(authDraft.confirm)}" oninput="authDraft.confirm=this.value" placeholder="еще раз">
-            </label>` : ""}
-        `}
+        <label>Код доступа
+          <input id="authCode" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" value="${escAttr(authDraft.code)}" oninput="authDraft.code=this.value" placeholder="8 цифр" autofocus>
+        </label>
         ${authError ? `<div class="auth-error">${escText(authError)}</div>` : ""}
         <button class="auth-submit" type="submit" ${authBusy ? "disabled" : ""}>
-          ${authBusy ? "Подождите..." : (isRegister ? "Создать аккаунт" : "Войти")}
+          ${authBusy ? "Подождите..." : "Войти"}
         </button>
       </form>
+      <a href="${escAttr(registerHref)}" class="auth-admin-link">Войти как администратор →</a>
     </div>`;
 }
 

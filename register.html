@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Складка — Вход для администратора</title>
+<link rel="stylesheet" href="style.css?v=41">
+<style>
+  body { margin: 0; background: #171717; }
+  .auth-admin-link { display: block; text-align: center; margin-top: 14px; color: #888; font-size: 12px; text-decoration: none; }
+  .auth-admin-link:hover { color: #bbb; }
+</style>
+</head>
+<body>
+<div class="auth-screen">
+  <div id="authCard" class="auth-card"></div>
+</div>
+
+<script>
+  window.DJST_API_BASE = "https://fencing42.ru/daijest/api";
+
+  const AUTH_TOKEN_KEY = "digest-builder-auth-token-v1";
+  const API_BASE = window.DJST_API_BASE;
+
+  const PUBLIC_BASE_PATH =
+    (window.location.pathname === "/daijest" || window.location.pathname.startsWith("/daijest/"))
+      ? "/daijest" : "";
+  const mainHref = PUBLIC_BASE_PATH ? PUBLIC_BASE_PATH + "/" : "digest-builder.html";
+
+  // Redirect if already authenticated
+  const existingToken = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (existingToken) {
+    fetch(API_BASE + "/me", {
+      headers: { Authorization: "Bearer " + existingToken, "Content-Type": "application/json" }
+    }).then(r => { if (r.ok) window.location.href = mainHref; }).catch(() => {});
+  }
+
+  let mode = "login";
+  let busy = false;
+  let err = "";
+  let draft = { email: "", name: "", password: "", confirm: "" };
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function render() {
+    const isReg = mode === "register";
+    document.getElementById("authCard").innerHTML = `
+      <div class="auth-brand">
+        <img src="logos/logo-skladka.svg" alt="">
+        <div>
+          <h1>Складка</h1>
+          <p>Вход для администратора.</p>
+        </div>
+      </div>
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="${!isReg ? "active" : ""}" onclick="setMode('login')">Вход</button>
+        <button type="button" class="${isReg ? "active" : ""}" onclick="setMode('register')">Регистрация</button>
+      </div>
+      <form class="auth-form" onsubmit="doSubmit(event)">
+        <label>Email
+          <input id="fEmail" type="email" autocomplete="email" value="${esc(draft.email)}" oninput="draft.email=this.value" placeholder="name@example.com">
+        </label>
+        ${isReg ? `
+          <label>Имя
+            <input id="fName" type="text" autocomplete="name" value="${esc(draft.name)}" oninput="draft.name=this.value" placeholder="Редакция">
+          </label>` : ""}
+        <label>Пароль
+          <input id="fPassword" type="password" autocomplete="${isReg ? "new-password" : "current-password"}" value="${esc(draft.password)}" oninput="draft.password=this.value" placeholder="минимум 8 символов">
+        </label>
+        ${isReg ? `
+          <label>Повторите пароль
+            <input id="fConfirm" type="password" autocomplete="new-password" value="${esc(draft.confirm)}" oninput="draft.confirm=this.value" placeholder="еще раз">
+          </label>` : ""}
+        ${err ? `<div class="auth-error">${esc(err)}</div>` : ""}
+        <button class="auth-submit" type="submit" ${busy ? "disabled" : ""}>
+          ${busy ? "Подождите..." : (isReg ? "Создать аккаунт" : "Войти")}
+        </button>
+      </form>
+      <a href="${esc(mainHref)}" class="auth-admin-link">← Вернуться к входу по коду</a>`;
+  }
+
+  function setMode(m) {
+    mode = m;
+    err = "";
+    render();
+  }
+
+  function validate() {
+    draft.email    = (document.getElementById("fEmail")?.value    || "").trim();
+    draft.name     = (document.getElementById("fName")?.value     || "").trim();
+    draft.password = document.getElementById("fPassword")?.value  || "";
+    draft.confirm  = document.getElementById("fConfirm")?.value   || "";
+    if (!draft.email || !draft.email.includes("@")) return "Введите корректный email.";
+    if (draft.password.length < 8)                  return "Пароль не короче 8 символов.";
+    if (mode === "register" && draft.password !== draft.confirm) return "Пароли не совпадают.";
+    return "";
+  }
+
+  async function doSubmit(e) {
+    if (e) e.preventDefault();
+    if (busy) return;
+    err = validate();
+    if (err) { render(); return; }
+    busy = true;
+    err = "";
+    render();
+    try {
+      const path = mode === "register" ? "/auth/register" : "/auth/login";
+      const body = mode === "register"
+        ? { email: draft.email, name: draft.name, password: draft.password }
+        : { email: draft.email, password: draft.password };
+      const res = await fetch(API_BASE + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+      localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+      window.location.href = mainHref;
+    } catch (e) {
+      const msg = e.message || "";
+      if (/invalid email or password/i.test(msg))  err = "Неверный email или пароль.";
+      else if (/already registered/i.test(msg))    err = "Такой email уже зарегистрирован.";
+      else if (/at least 8/i.test(msg))            err = "Пароль не короче 8 символов.";
+      else err = msg || "Ошибка запроса.";
+      render();
+    } finally {
+      busy = false;
+    }
+  }
+
+  render();
+</script>
+</body>
+</html>

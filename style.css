@@ -1166,6 +1166,15 @@ label { color: #888; }
 .auth-tabs-three {
   grid-template-columns: 1fr 1fr 1fr;
 }
+.auth-admin-link {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  color: #666;
+  font-size: 12px;
+  text-decoration: none;
+}
+.auth-admin-link:hover { color: #aaa; }
 
 /* ===  Digest type badge in project list === */
 .project-item-title-row {

@@ -13,6 +13,7 @@ const PUBLIC_BASE_PATH =
 const API_BASE = window.DJST_API_BASE || `${PUBLIC_BASE_PATH}/api`;
 const AUTOSAVE_DELAY_MS = 5000;
 const HISTORY_LIMIT = 60;
+const ADMIN_USERS_PAGE_SIZE = 50;
 
 const COMPANIES = [
   { key: "volkov_z",  name: "Волков (Заринск)",         theme: "volkov",  color: "#f4a93d" },
@@ -65,6 +66,9 @@ let adminUsers = [];
 let adminNewUserName = "";
 let adminBusy = false;
 let adminError = "";
+let adminSearch = "";
+let adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
+let adminDeletingUserId = "";
 let currentDigestType = "analytical";
 let newProjectType = "analytical";
 let projectsPanelOpen = false;
@@ -79,6 +83,8 @@ let historyRevisions = [];
 let historyLoading = false;
 let importTargetProjectId = "";
 let pendingImport = null;
+let companyImportTargetKey = "";
+let pendingCompanyImport = null;
 let renamingProjectId = "";
 let renameDraft = "";
 let revisionPreview = null;
@@ -244,6 +250,11 @@ function formatProjectTime(value) {
 function safeFileTitle(value) {
   return (value || "project").trim().replace(/[\\/:*?"<>|]+/g, "-").slice(0, 80) || "project";
 }
+let blockIdSeq = 0;
+function createBlockId() {
+  blockIdSeq += 1;
+  return "b" + Date.now() + Math.floor(Math.random() * 1000) + blockIdSeq;
+}
 function saveStatusClass() {
   if (/ошибка/i.test(saveStatus)) return "error";
   if (/сохранение/i.test(saveStatus)) return "saving";
@@ -406,11 +417,16 @@ function logoutAccount() {
   adminUsers = [];
   adminNewUserName = "";
   adminError = "";
+  adminSearch = "";
+  adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
+  adminDeletingUserId = "";
   historyProjectId = "";
   historyRevisions = [];
   historyLoading = false;
   importTargetProjectId = "";
   pendingImport = null;
+  companyImportTargetKey = "";
+  pendingCompanyImport = null;
   revisionPreview = null;
   clearTimeout(remoteSaveTimer);
   safeStorageRemove(AUTH_TOKEN_KEY);
@@ -836,6 +852,10 @@ function closeConfirmDialog() {
     pendingImport = null;
     importTargetProjectId = "";
   }
+  if (confirmDialog?.clearPendingCompanyImport) {
+    pendingCompanyImport = null;
+    companyImportTargetKey = "";
+  }
   confirmDialog = null;
   renderAccountBar();
 }
@@ -845,6 +865,14 @@ async function acceptConfirmDialog() {
   confirmDialog = null;
   renderAccountBar();
   await dialog.onConfirm();
+}
+async function acceptConfirmDialogAction(index) {
+  const dialog = confirmDialog;
+  const action = dialog?.actions?.[index];
+  if (!action || typeof action.onConfirm !== "function") return;
+  confirmDialog = null;
+  renderAccountBar();
+  await action.onConfirm();
 }
 async function duplicateProject(projectId) {
   if (!authToken || !projectId) return;
@@ -1186,7 +1214,7 @@ function toggleCompany(compKey) {
 function addBlock(compKey, blockType) {
   const comp = getComp(compKey);
   if (!comp) return;
-  const id = "b" + Date.now() + Math.floor(Math.random() * 1000);
+  const id = createBlockId();
   comp.blocks.push({ id, type: blockType, collapsed: false, items: [{ kind: "news", title: "", text: "", photos: [], photoLayout: "bottom", photoRatio: "4/3" }], comment: "" });
   const menu = document.querySelector(`[data-addmenu="${compKey}"]`);
   if (menu) menu.classList.remove("open");
@@ -1507,7 +1535,11 @@ function companyEditorHTML(compState) {
     <div class="company-section ${compState.collapsed ? 'collapsed' : ''}">
       <div class="company-head" onclick="toggleCompany('${compState.key}')">
         <span class="company-dot" style="background:${meta.color}"></span>
-        <span class="company-name">${meta.name}</span>
+        <span class="company-name">${escText(meta.name)}</span>
+        <span class="company-actions" onclick="event.stopPropagation()">
+          <button type="button" class="company-json-btn" onclick="importCompanyJSON('${compState.key}')" title="Импорт JSON в ${escAttr(meta.name)}">Импорт</button>
+          <button type="button" class="company-json-btn" onclick="exportCompanyJSON('${compState.key}')" title="Экспорт JSON из ${escAttr(meta.name)}">Экспорт</button>
+        </span>
         <span class="company-chevron">${collapseIcon(compState.collapsed)}</span>
       </div>
       <div class="company-body">
@@ -1782,6 +1814,11 @@ function renderRevisionHistory(projectId, revisions) {
 
 function renderConfirmDialog() {
   if (!confirmDialog) return "";
+  const actionButtons = Array.isArray(confirmDialog.actions) && confirmDialog.actions.length
+    ? confirmDialog.actions.map((action, i) => `
+          <button type="button" class="${escAttr(action.className || "primary-action")}" onclick="acceptConfirmDialogAction(${i})">${escText(action.text || "Подтвердить")}</button>
+        `).join("")
+    : `<button type="button" class="${confirmDialog.danger ? "danger-action" : "primary-action"}" onclick="acceptConfirmDialog()">${escText(confirmDialog.confirmText || "Подтвердить")}</button>`;
   return `
     <div class="confirm-backdrop">
       <div class="confirm-dialog">
@@ -1789,7 +1826,7 @@ function renderConfirmDialog() {
         <p>${escText(confirmDialog.message || "")}</p>
         <div class="confirm-actions">
           <button type="button" onclick="closeConfirmDialog()">Отмена</button>
-          <button type="button" class="${confirmDialog.danger ? "danger-action" : "primary-action"}" onclick="acceptConfirmDialog()">${escText(confirmDialog.confirmText || "Подтвердить")}</button>
+          ${actionButtons}
         </div>
       </div>
     </div>`;
@@ -1881,6 +1918,7 @@ function renderProjectsDrawer() {
 // ============================================================
 function openAdminPanel() {
   adminPanelOpen = true;
+  adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
   loadAdminUsers();
   renderAccountBar();
 }
@@ -1915,6 +1953,92 @@ async function createAdminUser() {
     renderAccountBar();
   }
 }
+function setAdminSearch(value) {
+  adminSearch = value || "";
+  adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
+  syncAdminUserList();
+}
+function showMoreAdminUsers() {
+  adminVisibleLimit += ADMIN_USERS_PAGE_SIZE;
+  syncAdminUserList();
+}
+async function deleteAdminUser(userId) {
+  if (!userId || adminDeletingUserId) return;
+  adminDeletingUserId = userId;
+  adminError = "";
+  renderAccountBar();
+  try {
+    await apiRequest("/admin/users/" + userId, { method: "DELETE" });
+    adminUsers = adminUsers.filter(u => u.id !== userId);
+    setSaveStatus("Пользователь удалён");
+  } catch (err) {
+    adminError = err.message || "Ошибка удаления пользователя";
+  } finally {
+    adminDeletingUserId = "";
+    renderAccountBar();
+  }
+}
+function confirmDeleteAdminUser(userId) {
+  const user = adminUsers.find(u => u.id === userId);
+  if (!user || user.id === currentUser?.id) return;
+  const label = user.name || user.email || user.accessCode || "пользователь";
+  openConfirmDialog({
+    title: `Удалить пользователя "${label}"?`,
+    message: "Будут удалены его доступ, сессии и сохранённые проекты. Это действие нельзя отменить.",
+    confirmText: "Удалить",
+    danger: true,
+    onConfirm: () => deleteAdminUser(userId)
+  });
+}
+function filteredAdminUsers() {
+  const query = adminSearch.trim().toLowerCase();
+  return query
+    ? adminUsers.filter(u => [u.name, u.email, u.accessCode].some(value => (value || "").toLowerCase().includes(query)))
+    : adminUsers;
+}
+function renderAdminListMeta() {
+  const filteredUsers = filteredAdminUsers();
+  return `${filteredUsers.length} из ${adminUsers.length}`;
+}
+function renderAdminUserList() {
+  const filteredUsers = filteredAdminUsers();
+  const visibleUsers = filteredUsers.slice(0, adminVisibleLimit);
+  const rows = visibleUsers.map(u => {
+    const isSelf = u.id === currentUser?.id;
+    const deleting = adminDeletingUserId === u.id;
+    return `
+    <div class="admin-user-row">
+      <div class="admin-user-main">
+        <span class="admin-user-name">${escText(u.name || "—")}</span>
+        ${u.accessCode
+          ? `<code class="admin-user-code">${escText(u.accessCode)}</code>`
+          : `<span class="admin-user-email">${escText(u.email || "—")}</span>`}
+      </div>
+      <div class="admin-user-tools">
+        ${isSelf
+          ? `<span class="admin-user-self">Это вы</span>`
+          : `<button type="button" class="admin-user-delete" onclick="confirmDeleteAdminUser('${escAttr(u.id)}')" ${deleting ? "disabled" : ""}>${deleting ? "..." : "Удалить"}</button>`}
+      </div>
+    </div>`;
+  }).join("");
+  return filteredUsers.length ? rows : `<div class="panel-empty-line">${adminUsers.length ? "Ничего не найдено" : "Нет пользователей"}</div>`;
+}
+function renderAdminListFooter() {
+  const filteredUsers = filteredAdminUsers();
+  const visibleCount = Math.min(adminVisibleLimit, filteredUsers.length);
+  const hasMoreUsers = filteredUsers.length > visibleCount;
+  return `
+    ${hasMoreUsers ? `<button type="button" class="admin-load-more" onclick="showMoreAdminUsers()">Показать ещё ${Math.min(ADMIN_USERS_PAGE_SIZE, filteredUsers.length - visibleCount)}</button>` : ""}
+    <button type="button" class="admin-refresh-btn" onclick="loadAdminUsers()">Обновить список</button>`;
+}
+function syncAdminUserList() {
+  const list = document.getElementById("adminUserList");
+  if (list) list.innerHTML = renderAdminUserList();
+  const meta = document.getElementById("adminListMeta");
+  if (meta) meta.textContent = renderAdminListMeta();
+  const footer = document.getElementById("adminListFooter");
+  if (footer) footer.innerHTML = renderAdminListFooter();
+}
 function renderAdminSection() {
   if (!currentUser?.isAdmin) return "";
   if (!adminPanelOpen) {
@@ -1924,28 +2048,24 @@ function renderAdminSection() {
         <button type="button" class="drawer-new-project" onclick="openAdminPanel()">Управление пользователями</button>
       </section>`;
   }
-  const rows = adminUsers.map(u => `
-    <div class="admin-user-row">
-      <span class="admin-user-name">${escText(u.name || "—")}</span>
-      ${u.accessCode
-        ? `<code class="admin-user-code">${escText(u.accessCode)}</code>`
-        : `<span class="admin-user-email">${escText(u.email || "—")}</span>`}
-    </div>`).join("");
   return `
     <section class="drawer-section">
       <div class="projects-heading plain-heading">
         <span>Пользователи</span>
-        <button type="button" class="drawer-close-small" onclick="closeAdminPanel()">Скрыть</button>
+        <small id="adminListMeta" class="admin-list-meta">${renderAdminListMeta()}</small>
       </div>
       <form class="admin-create-form" onsubmit="event.preventDefault(); createAdminUser()">
         <input class="project-search" style="flex:1;margin:0" type="text" placeholder="Имя нового пользователя..." value="${escAttr(adminNewUserName)}" oninput="adminNewUserName=this.value">
         <button type="submit" class="admin-create-btn" ${adminBusy ? "disabled" : ""}>${adminBusy ? "..." : "Создать"}</button>
       </form>
+      <input class="project-search admin-user-search" type="search" placeholder="Поиск по пользователям..." value="${escAttr(adminSearch)}" oninput="setAdminSearch(this.value)">
       ${adminError ? `<div class="auth-error" style="margin:0 0 8px">${escText(adminError)}</div>` : ""}
-      <div class="admin-user-list">
-        ${adminUsers.length ? rows : `<div class="panel-empty-line">Нет пользователей</div>`}
+      <div id="adminUserList" class="admin-user-list">
+        ${renderAdminUserList()}
       </div>
-      <button type="button" style="margin-top:6px;font-size:12px;color:#888;background:none;border:0;cursor:pointer;padding:4px 0" onclick="loadAdminUsers()">Обновить список</button>
+      <div id="adminListFooter" class="admin-list-footer">
+        ${renderAdminListFooter()}
+      </div>
     </section>`;
 }
 
@@ -2038,6 +2158,90 @@ function render(persist = true) {
 // ============================================================
 //   PERSIST / EXPORT
 // ============================================================
+function cloneJSON(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+function cloneBlocksWithFreshIds(blocks) {
+  return cloneJSON(blocks).map(block => Object.assign({}, block, { id: createBlockId() }));
+}
+function showCompanyImportError(message) {
+  const text = message || "Не удалось импортировать JSON компании.";
+  setSaveStatus(text);
+  renderAccountBar();
+  alert(text);
+}
+function exportCompanyJSON(compKey) {
+  const comp = getComp(compKey);
+  if (!comp) return;
+  const meta = getCompMeta(compKey);
+  const envelope = {
+    schemaVersion: 1,
+    exportKind: "company-blocks",
+    exportedAt: new Date().toISOString(),
+    projectTitle: projectTitle(),
+    companyKey: compKey,
+    companyName: meta.name,
+    blocks: cloneJSON(comp.blocks || [])
+  };
+  const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = safeFileTitle(projectTitle()) + '-' + safeFileTitle(meta.name) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setSaveStatus("JSON компании экспортирован");
+}
+function importCompanyJSON(compKey) {
+  companyImportTargetKey = compKey;
+  pendingCompanyImport = null;
+  const input = document.getElementById("companyFileInput");
+  if (input) input.click();
+}
+function openCompanyImportChoice(data) {
+  const targetMeta = getCompMeta(companyImportTargetKey);
+  pendingCompanyImport = {
+    companyKey: companyImportTargetKey,
+    blocks: data.blocks,
+    companyName: data.companyName || targetMeta.name
+  };
+  openConfirmDialog({
+    title: `Импорт JSON в "${targetMeta.name}"`,
+    message: "Выберите, что сделать с текущими блоками этой компании.",
+    clearPendingCompanyImport: true,
+    actions: [
+      {
+        text: "Добавить",
+        className: "primary-action",
+        onConfirm: () => applyCompanyImport("append")
+      },
+      {
+        text: "Заменить",
+        className: "danger-action",
+        onConfirm: () => applyCompanyImport("replace")
+      }
+    ]
+  });
+}
+function applyCompanyImport(mode) {
+  if (!pendingCompanyImport || !companyImportTargetKey) return;
+  const targetKey = companyImportTargetKey;
+  const comp = getComp(targetKey);
+  if (!comp) {
+    pendingCompanyImport = null;
+    companyImportTargetKey = "";
+    showCompanyImportError("Секция компании не найдена.");
+    return;
+  }
+  const nextBlocks = cloneBlocksWithFreshIds(pendingCompanyImport.blocks || []);
+  if (mode === "replace") comp.blocks = nextBlocks;
+  else comp.blocks.push(...nextBlocks);
+  comp.collapsed = false;
+  pendingCompanyImport = null;
+  companyImportTargetKey = "";
+  render(false);
+  afterStateChanged(mode === "replace" ? "company json replace" : "company json append");
+  setSaveStatus(mode === "replace" ? "JSON компании заменил блоки" : "JSON компании добавлен");
+}
 function exportJSON() {
   exportProjectJSON(currentDigestId);
 }
@@ -2147,6 +2351,37 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
     pendingImport = null;
     importTargetProjectId = "";
     setSaveStatus("Ошибка импорта JSON");
+  }
+});
+
+document.getElementById("companyFileInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const targetKey = companyImportTargetKey;
+  try {
+    if (!targetKey) throw new Error("Не выбрана компания для импорта.");
+    const targetMeta = getCompMeta(targetKey);
+    const data = JSON.parse(await file.text());
+    if (data.exportKind !== "company-blocks") {
+      throw new Error("Этот файл не является экспортом блоков компании.");
+    }
+    if (data.companyKey !== targetKey) {
+      const sourceName = data.companyName || data.companyKey || "другая компания";
+      throw new Error(`JSON из "${sourceName}" можно импортировать только в "${targetMeta.name}".`);
+    }
+    if (!Array.isArray(data.blocks)) {
+      throw new Error("В JSON компании нет списка блоков.");
+    }
+    if (!data.blocks.every(block => block && typeof block === "object" && Array.isArray(block.items))) {
+      throw new Error("В JSON компании повреждены данные блоков.");
+    }
+    openCompanyImportChoice(data);
+  } catch (err) {
+    console.error("Company JSON import error:", err);
+    pendingCompanyImport = null;
+    companyImportTargetKey = "";
+    showCompanyImportError(err.message || "Ошибка импорта JSON компании.");
   }
 });
 

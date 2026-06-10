@@ -2429,18 +2429,47 @@ async function exportPDF() {
 }
 
 
+const exportSvgDataUrlCache = new Map();
+const exportAssetBaseUrl = new URL(".", document.currentScript?.src || window.location.href).href;
+
+function isSvgImageSrc(src) {
+  return /\.svg(?:[?#].*)?$/i.test(src || "");
+}
+
+async function svgImageToDataUrl(src) {
+  const url = new URL(src, exportAssetBaseUrl);
+  const cacheKey = url.href;
+  if (exportSvgDataUrlCache.has(cacheKey)) return exportSvgDataUrlCache.get(cacheKey);
+
+  const response = await fetch(url.href, { cache: "force-cache" });
+  if (!response.ok) throw new Error(`Cannot load ${url.pathname}: ${response.status}`);
+  const svgText = await response.text();
+  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
+  exportSvgDataUrlCache.set(cacheKey, dataUrl);
+  return dataUrl;
+}
+
+async function inlineSvgImagesForExport(root) {
+  const images = Array.from(root.querySelectorAll("img"));
+  await Promise.all(images.map(async img => {
+    const src = img.getAttribute("src") || img.currentSrc || img.src || "";
+    if (!isSvgImageSrc(src)) return;
+
+    try {
+      img.setAttribute("src", await svgImageToDataUrl(src));
+    } catch (err) {
+      console.warn("SVG image was not inlined for export:", src, err);
+    }
+  }));
+}
+
 async function pageToDataUrl(page, scale) {
   const w = page.offsetWidth;
   const h = page.scrollHeight;
 
   const clone = page.cloneNode(true);
   clone.style.cssText = `position:fixed;top:-99999px;left:0;width:${w}px;margin:0;box-sizing:border-box;`;
-
-  Array.from(clone.querySelectorAll('img')).forEach(img => {
-    const src = img.getAttribute('src') || '';
-    const m = src.match(/logo-([^/\\]+?)\.svg/);
-    if (m && LOGO_DATA[m[1]]) img.setAttribute('src', LOGO_DATA[m[1]]);
-  });
+  await inlineSvgImagesForExport(clone);
 
   document.body.appendChild(clone);
 

@@ -429,12 +429,17 @@ git commit -m "refactor: extract storage and state modules"
 - [ ] **Step 6:** `node --check` на все файлы.
 - [ ] **Step 7: Commit** `refactor: extract view and render modules`
 
-### Task 2.10: Точка входа `main.js` + мост в `window` + переключение HTML
+### Task 2.10: Точка входа `main.js` + мост в `window` + переключение HTML + Dockerfile
 
 **Files:**
 - Create: `daijest_front/js/main.js`
 - Modify: `daijest_front/digest-builder.html:87`
+- Modify: `daijest_front/Dockerfile` (КРИТИЧНО — иначе сборка упадёт)
 - Delete (в конце фазы): `daijest_front/app.js`
+
+> **КРИТИЧНО:** `Dockerfile` копирует файлы поимённо и включает `app.js`. После удаления `app.js` строка `COPY ... app.js ...` уронит сборку, а папка `js/` без правки в образ не попадёт. Обновить `Dockerfile`:
+> - убрать `app.js` из строки `COPY`;
+> - добавить отдельной строкой: `COPY js/ /usr/share/nginx/html/js/`.
 
 - [ ] **Step 1: `main.js`** — импортировать `init` и все функции, на которые ссылаются inline-обработчики, и выставить их в `window`, чтобы существующие `onclick` работали:
 

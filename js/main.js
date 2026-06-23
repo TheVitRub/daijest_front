@@ -1,25 +1,9 @@
 // ============================================================
-//   MAIN — entry point, window bridge, init
+//   MAIN — entry point + init
 // ============================================================
-import * as storeMod from "./store.js";
-import * as stateMod from "./state/state.js";
-import * as historyMod from "./state/history.js";
-import * as storageMod from "./storage.js";
-import * as apiMod from "./api.js";
-import * as iconsMod from "./dom/icons.js";
-import * as escapeMod from "./dom/escape.js";
-import * as auth from "./features/auth.js";
-import * as projects from "./features/projects.js";
-import * as admin from "./features/admin.js";
-import * as impexp from "./features/import-export.js";
-import * as media from "./features/media-export.js";
-import * as dnd from "./dnd.js";
-import * as editor from "./view/editor.js";
-import * as preview from "./view/preview.js";
-import * as account from "./view/account.js";
-import * as status from "./view/status.js";
-import * as renderMod from "./render.js";
-
+// All handler wiring goes through event delegation (events.js + actions.js);
+// the whole module graph loads transitively from those imports, so no module
+// needs to be referenced explicitly here beyond what init() uses.
 import { g } from "./store.js";
 import { AUTH_TOKEN_KEY, CURRENT_DIGEST_KEY, AUTOSAVE_ENABLED_KEY } from "./config.js";
 import { safeStorageGet, loadLocalDraft, saveLocalDraft } from "./storage.js";
@@ -42,18 +26,6 @@ function attachProjectMenuDismiss() {
     }
   });
 }
-
-// --- Window bridge -------------------------------------------------------
-// Inline on* handlers in the generated HTML run in the global scope and
-// reference handler functions (and the store object `g`) by bare name. Until
-// Phase 3 (event delegation) replaces them, expose everything on window.
-Object.assign(
-  window,
-  storeMod, stateMod, historyMod, storageMod, apiMod, iconsMod, escapeMod,
-  auth, projects, admin, impexp, media, dnd,
-  editor, preview, account, status, renderMod,
-);
-window.g = g;
 
 // --- Editor / preview resize handle -------------------------------------
 function setupResizeHandle() {

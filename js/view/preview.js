@@ -3,7 +3,7 @@
 // ============================================================
 import { escAttr, escText } from "../dom/escape.js";
 import { getCompMeta, getBlockLabel } from "../config.js";
-import { state } from "../state/state.js";
+import { state, getTiles } from "../state/state.js";
 
 export function pageCover() {
   if (!state.digestCover) return "";
@@ -89,9 +89,7 @@ export function pageBlock(compKey, block) {
   const shortName = meta.name.split("(")[0].trim();
   const itemsHTML = block.items.map(it => {
     if (it.kind === 'metric') {
-      const tiles = it.tiles && it.tiles.length ? it.tiles
-        : [{ value: it.value||'', label: it.label||'', delta: it.delta||'', direction: it.direction||'up' }];
-      return metricGridHTML(tiles);
+      return metricGridHTML(getTiles(it));
     }
     return newsItemHTML(it);
   }).join('');

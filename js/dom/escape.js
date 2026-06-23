@@ -1,7 +1,14 @@
 // ============================================================
 //   HTML escaping
 // ============================================================
-// NOTE: kept as-is from the monolith for Phase 2 (behaviour-preserving).
-// Full escaping (& < > " ') lands in Phase 4.
-export function escAttr(s) { return (s || "").replace(/"/g, "&quot;"); }
-export function escText(s) { return (s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+
+// Escapes the five HTML-significant characters. Safe for both text content and
+// (single- or double-quoted) attribute values.
+export function escapeHtml(s) {
+  return (s == null ? "" : String(s)).replace(/[&<>"']/g, (c) => ESC[c]);
+}
+
+// Kept as named aliases so existing call sites read naturally.
+export const escAttr = escapeHtml;
+export const escText = escapeHtml;

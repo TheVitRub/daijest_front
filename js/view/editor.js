@@ -3,9 +3,9 @@
 // ============================================================
 import { g } from "../store.js";
 import { escAttr, escText } from "../dom/escape.js";
-import { collapseIcon, ITEM_DRAG_HANDLE, itemDragAttrs } from "../dom/icons.js";
+import { collapseIcon, ITEM_DRAG_HANDLE, itemDragAttrs, dragHandle } from "../dom/icons.js";
 import { getCompMeta, getBlockLabel, BLOCK_TYPES } from "../config.js";
-import { state, getBlock } from "../state/state.js";
+import { state, getBlock, getTiles } from "../state/state.js";
 import { render } from "../render.js";
 
 export function autoGrow(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
@@ -174,8 +174,7 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
         </div>
       </div>`;
   }
-  const tiles = item.tiles && item.tiles.length ? item.tiles
-    : [{ value: item.value||'', label: item.label||'', delta: item.delta||'', direction: item.direction||'up' }];
+  const tiles = getTiles(item);
   const tilesHTML = tiles.map((tile, ti) => `
     <div class="metric-tile-row">
       <div class="row2">
@@ -215,7 +214,7 @@ export function blockEditorHTML(compKey, block) {
          data-dragstart="onDragStart" data-dragend="onDragEnd" data-dragover="onDragOver" data-drop="onDrop"
          data-dargs='["${compKey}","${block.id}"]'>
       <div class="block-head">
-        <span class="drag-handle" data-draghandle=".block-card"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="9" cy="19" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="15" cy="19" r="2"/></svg></span>
+        ${dragHandle('.block-card')}
         <span class="block-badge" style="background:${meta.color}">${label}</span>
         <span class="block-actions">
           <button class="icon-btn" data-act="moveBlock" data-args='["${compKey}","${block.id}",-1]' title="Вверх"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>

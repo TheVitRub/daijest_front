@@ -3,7 +3,6 @@
 // ============================================================
 import { g } from "../store.js";
 import { escAttr, escText } from "../dom/escape.js";
-import { PUBLIC_BASE_PATH } from "../config.js";
 import { projectTitle } from "../state/state.js";
 import { formatProjectDate, currentVersion, projectById } from "../features/projects.js";
 import { saveStatusClass, saveStatusSummary, renderShellState, setSaveStatus } from "./status.js";
@@ -18,7 +17,6 @@ export function renderAuthScreen() {
     return;
   }
 
-  const registerHref = PUBLIC_BASE_PATH ? PUBLIC_BASE_PATH + "/register.html" : "register.html";
   el.innerHTML = `
     <div class="auth-card">
       <div class="auth-brand">

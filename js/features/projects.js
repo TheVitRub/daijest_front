@@ -207,11 +207,6 @@ export async function saveRemoteDraft(action, force) {
     renderSaveStatusOnly();
   }
 }
-export async function loadSelectedDigest() {
-  const selected = document.getElementById("digestSelect")?.value || g.currentDigestId;
-  if (!selected) return;
-  await loadRemoteDigest(selected, false);
-}
 export async function loadRemoteDigest(digestId, quiet) {
   try {
     g.revisionPreview = null;
@@ -273,13 +268,6 @@ export async function closeProjectHistory() {
   g.historyLoading = false;
   renderAccountBar();
 }
-export async function rollbackRemoteRevision() {
-  const revisionId = document.getElementById("revisionSelect")?.value || "";
-  if (!revisionId || !g.currentDigestId) return;
-  const revision = g.remoteRevisions.find(r => r.id === revisionId);
-  confirmRollbackRevision(revisionId, revision?.version || "");
-}
-
 export async function openProject(projectId) {
   if (!projectId) return;
   if (projectId === g.currentDigestId) {
@@ -374,14 +362,6 @@ export function toggleProjectMenu(event, projectId) {
     right: Math.max(12, window.innerWidth - rect.right)
   };
   syncProjectMenuLayer();
-}
-export function handleProjectsDrawerClick(event) {
-  event.stopPropagation();
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  if (g.projectMenuOpenId && !target.closest(".project-menu-layer") && !target.closest(".project-menu-button")) {
-    closeProjectMenu();
-  }
 }
 export function startRenameProject(projectId) {
   const digest = g.remoteDigests.find(d => d.id === projectId) || currentRemoteDigest();

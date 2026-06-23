@@ -36,6 +36,12 @@ export function getBlock(compKey, blockId) {
   const comp = getComp(compKey);
   return comp ? comp.blocks.find(b => b.id === blockId) : null;
 }
+// Tiles of a metric item, with the legacy single-value fallback.
+export function getTiles(item) {
+  return item.tiles && item.tiles.length
+    ? item.tiles
+    : [{ value: item.value || "", label: item.label || "", delta: item.delta || "", direction: item.direction || "up" }];
+}
 
 export function digestTitle() {
   return (state.letter && state.letter.title ? state.letter.title : "Новый проект").trim() || "Новый проект";

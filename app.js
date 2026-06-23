@@ -2049,12 +2049,10 @@ function closeAdminEditModal() {
 async function saveAdminEditName() {
   if (!adminEditUser || !adminEditDraftName.trim()) return;
   try {
-    const res = await apiRequest(`/admin/users/${adminEditUser.id}`, {
+    const data = await apiRequest(`/admin/users/${adminEditUser.id}`, {
       method: "PATCH",
       body: JSON.stringify({ name: adminEditDraftName.trim() })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "ошибка");
     const idx = adminUsers.findIndex(u => u.id === adminEditUser.id);
     if (idx !== -1) adminUsers[idx] = data.user;
     adminEditUser = data.user;

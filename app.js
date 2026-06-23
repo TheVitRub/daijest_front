@@ -1713,7 +1713,6 @@ function renderAuthScreen() {
           ${authBusy ? "Подождите..." : "Войти"}
         </button>
       </form>
-      <a href="${escAttr(registerHref)}" class="auth-admin-link">Войти как администратор →</a>
     </div>`;
 }
 
@@ -1999,6 +1998,23 @@ function confirmDeleteAdminUser(userId) {
     onConfirm: () => deleteAdminUser(userId)
   });
 }
+async function toggleAdminRole(userId, makeAdmin) {
+  const user = adminUsers.find(u => u.id === userId);
+  if (!user) return;
+  try {
+    const res = await apiFetch(`/api/admin/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isAdmin: makeAdmin })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "ошибка");
+    const idx = adminUsers.findIndex(u => u.id === userId);
+    if (idx !== -1) adminUsers[idx] = data.user;
+    render();
+  } catch (e) {
+    alert("Не удалось изменить права: " + e.message);
+  }
+}
 function filteredAdminUsers() {
   const query = adminSearch.trim().toLowerCase();
   return query
@@ -2019,14 +2035,15 @@ function renderAdminUserList() {
     <div class="admin-user-row">
       <div class="admin-user-main">
         <span class="admin-user-name">${escText(u.name || "—")}</span>
-        ${u.accessCode
-          ? `<code class="admin-user-code">${escText(u.accessCode)}</code>`
-          : `<span class="admin-user-email">${escText(u.email || "—")}</span>`}
+        ${u.email ? `<span class="admin-user-email">${escText(u.email)}</span>` : ""}
+        ${u.accessCode ? `<code class="admin-user-code">${escText(u.accessCode)}</code>` : ""}
+        ${u.isAdmin ? `<span class="admin-user-admin-badge">Админ</span>` : ""}
       </div>
       <div class="admin-user-tools">
         ${isSelf
           ? `<span class="admin-user-self">Это вы</span>`
-          : `<button type="button" class="admin-user-delete" onclick="confirmDeleteAdminUser('${escAttr(u.id)}')" ${deleting ? "disabled" : ""}>${deleting ? "..." : "Удалить"}</button>`}
+          : `<button type="button" class="admin-user-role-btn" onclick="toggleAdminRole('${escAttr(u.id)}', ${!u.isAdmin})">${u.isAdmin ? "Снять права" : "Сделать админом"}</button>
+             <button type="button" class="admin-user-delete" onclick="confirmDeleteAdminUser('${escAttr(u.id)}')" ${deleting ? "disabled" : ""}>${deleting ? "..." : "Удалить"}</button>`}
       </div>
     </div>`;
   }).join("");
@@ -2088,14 +2105,10 @@ function renderToolbar() {
     return;
   }
   if (logoutBtn) logoutBtn.hidden = false;
-  if (currentUser.isAdmin) {
-    userInfo.innerHTML = `<div class="toolbar-id toolbar-id-admin"><span class="toolbar-id-admin-label">Администратор</span></div>`;
-    return;
-  }
   const displayId = currentUser.accessCode || "";
   userInfo.innerHTML = displayId ? `
-    <div class="toolbar-id">
-      <span class="toolbar-id-label">Код</span>
+    <div class="toolbar-id ${currentUser.isAdmin ? 'toolbar-id-admin' : ''}">
+      ${currentUser.isAdmin ? '<span class="toolbar-id-admin-label">Администратор</span>' : '<span class="toolbar-id-label">Код</span>'}
       <span class="toolbar-id-value">${escText(displayId)}</span>
       <button type="button" class="toolbar-id-copy" onclick="copyUserId()" title="Скопировать">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

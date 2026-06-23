@@ -1339,6 +1339,25 @@ label { color: #888; }
   opacity: 0.55;
   cursor: wait;
 }
+.admin-user-role-btn {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #b0b3b8;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 7px;
+}
+.admin-user-role-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.admin-user-admin-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #f4a93d;
+  border: 1px solid rgba(244,169,61,0.4);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+}
 .admin-list-footer {
   display: flex;
   align-items: center;

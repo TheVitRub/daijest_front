@@ -20,6 +20,7 @@ export const g = {
   lastRemoteTitle: "",
   currentProjectTitle: "",
   saveStatus: "",
+  saveStatusCode: "saved",
   authMode: "code",
   authError: "",
   authBusy: false,

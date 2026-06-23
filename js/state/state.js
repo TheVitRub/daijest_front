@@ -73,7 +73,6 @@ export function addBlock(compKey, blockType) {
   render();
 }
 export function removeBlock(compKey, blockId) {
-  if (!confirm("Удалить блок?")) return;
   const comp = getComp(compKey);
   if (!comp) return;
   comp.blocks = comp.blocks.filter(b => b.id !== blockId);

@@ -3,8 +3,8 @@
 // ============================================================
 import { g } from "../store.js";
 import { apiRequest } from "../api.js";
-import { AUTOSAVE_DELAY_MS, AUTOSAVE_ENABLED_KEY, CURRENT_DIGEST_KEY } from "../config.js";
-import { state, projectTitle, digestTitle, captureState, loadState, resetStateToInitial } from "../state/state.js";
+import { AUTOSAVE_DELAY_MS, AUTOSAVE_ENABLED_KEY, CURRENT_DIGEST_KEY, getBlockLabel } from "../config.js";
+import { state, projectTitle, digestTitle, captureState, loadState, resetStateToInitial, removeBlock, getBlock } from "../state/state.js";
 import { saveLocalDraft, safeStorageSet, safeStorageRemove } from "../storage.js";
 import { rememberSnapshot } from "../state/history.js";
 import { render } from "../render.js";
@@ -416,6 +416,18 @@ export async function finishRenameProject() {
 export function openConfirmDialog(config) {
   g.confirmDialog = config;
   renderAccountBar();
+}
+// Custom confirm for block deletion (replaces the old native confirm()).
+export function confirmRemoveBlock(compKey, blockId) {
+  const block = getBlock(compKey, blockId);
+  const label = block ? getBlockLabel(block.type) : "блок";
+  openConfirmDialog({
+    title: `Удалить блок "${label}"?`,
+    message: "Блок и его содержимое будут удалены.",
+    confirmText: "Удалить",
+    danger: true,
+    onConfirm: () => removeBlock(compKey, blockId),
+  });
 }
 export function closeConfirmDialog() {
   if (g.confirmDialog?.clearPendingImport) {

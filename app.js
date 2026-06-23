@@ -70,7 +70,6 @@ let adminError = "";
 let adminSearch = "";
 let adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
 let adminDeletingUserId = "";
-let adminEditOpenId = "";
 let adminEditUser = null;
 let adminEditDraftName = "";
 let currentDigestType = "analytical";
@@ -424,7 +423,6 @@ function logoutAccount() {
   adminSearch = "";
   adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
   adminDeletingUserId = "";
-  adminEditOpenId = "";
   adminEditUser = null;
   adminEditDraftName = "";
   historyProjectId = "";
@@ -2651,8 +2649,5 @@ function init() {
   rememberSnapshot(captureState());
   saveLocalDraft();
   bootstrapRemoteSession();
-  document.addEventListener("click", () => {
-    if (adminEditOpenId) { adminEditOpenId = ""; render(); }
-  });
 }
 init();

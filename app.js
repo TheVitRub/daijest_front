@@ -2012,12 +2012,10 @@ async function toggleAdminRole(userId, makeAdmin) {
   const user = adminUsers.find(u => u.id === userId);
   if (!user) return;
   try {
-    const res = await apiRequest(`/admin/users/${userId}`, {
+    const data = await apiRequest(`/admin/users/${userId}`, {
       method: "PATCH",
       body: JSON.stringify({ isAdmin: makeAdmin })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "ошибка");
     const idx = adminUsers.findIndex(u => u.id === userId);
     if (idx !== -1) adminUsers[idx] = data.user;
     if (adminEditUser?.id === userId) adminEditUser = data.user;

@@ -2405,7 +2405,7 @@ async function performProjectImport() {
     renderAccountBar();
   }
 }
-document.getElementById("fileInput").addEventListener("change", async (e) => {
+document.getElementById("fileInput")?.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   e.target.value = '';
   if (!file) return;
@@ -2441,7 +2441,7 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
   }
 });
 
-document.getElementById("companyFileInput").addEventListener("change", async (e) => {
+document.getElementById("companyFileInput")?.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   e.target.value = '';
   if (!file) return;
@@ -2617,6 +2617,7 @@ function clearAll() {
 (function() {
   const handle = document.getElementById('resizeHandle');
   const app    = document.querySelector('.app');
+  if (!handle || !app) return;
   let dragging = false;
 
   handle.addEventListener('mousedown', () => {

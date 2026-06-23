@@ -28,9 +28,9 @@ export function renderAuthScreen() {
           <p>Введите код доступа, чтобы войти.</p>
         </div>
       </div>
-      <form class="auth-form" onsubmit="submitAuthForm(event)">
+      <form class="auth-form" data-act="submitAuthForm">
         <label>Код доступа
-          <input id="authCode" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" value="${escAttr(g.authDraft.code)}" oninput="g.authDraft.code=this.value" placeholder="8 цифр" autofocus>
+          <input id="authCode" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" value="${escAttr(g.authDraft.code)}" data-bind="authDraft.code" placeholder="8 цифр" autofocus>
         </label>
         ${g.authError ? `<div class="auth-error">${escText(g.authError)}</div>` : ""}
         <button class="auth-submit" type="submit" ${g.authBusy ? "disabled" : ""}>
@@ -76,10 +76,10 @@ export function renderProjectList() {
         <article class="project-item ${active ? "active" : ""}">
           <div class="project-item-main">
             ${isRenaming ? `
-              <input class="project-rename-input" value="${escAttr(g.renameDraft)}" oninput="g.renameDraft=this.value" onkeydown="if(event.key==='Enter')finishRenameProject();if(event.key==='Escape')cancelRenameProject()">
+              <input class="project-rename-input" value="${escAttr(g.renameDraft)}" data-bind="renameDraft" data-keydown='{"Enter":"finishRenameProject","Escape":"cancelRenameProject"}'>
               <div class="project-rename-actions">
-                <button type="button" onclick="finishRenameProject()">Готово</button>
-                <button type="button" onclick="cancelRenameProject()">Отмена</button>
+                <button type="button" data-act="finishRenameProject">Готово</button>
+                <button type="button" data-act="cancelRenameProject">Отмена</button>
               </div>` : `
               <div class="project-item-title-row">
                 <span class="project-item-title">${escText(title)}</span>
@@ -88,8 +88,8 @@ export function renderProjectList() {
               <span class="project-item-meta">Изменен: ${escText(updated)}</span>`}
           </div>
           <div class="project-item-actions">
-            ${active ? `<span class="project-opened">Открыт</span>` : `<button type="button" onclick="openProject('${escAttr(d.id)}')">Открыть</button>`}
-            <button type="button" class="project-menu-button" onclick="toggleProjectMenu(event, '${escAttr(d.id)}')" aria-label="Меню проекта">&#8942;</button>
+            ${active ? `<span class="project-opened">Открыт</span>` : `<button type="button" data-act="openProject" data-args='["${escAttr(d.id)}"]'>Открыть</button>`}
+            <button type="button" class="project-menu-button" data-act="toggleProjectMenu" data-args='["$event","${escAttr(d.id)}"]' aria-label="Меню проекта">&#8942;</button>
           </div>
         </article>`;
     }).join("");
@@ -104,15 +104,15 @@ export function renderProjectMenu() {
   const id = escAttr(digest.id);
   const active = digest.id === g.currentDigestId;
   return `
-    <div class="project-menu-layer" style="top:${top}px;right:${right}px" onclick="event.stopPropagation()">
-      ${active ? `<button type="button" disabled>Открыт</button>` : `<button type="button" onclick="openProject('${id}')">Открыть</button>`}
-      <button type="button" onclick="startRenameProject('${id}')">Переименовать</button>
-      ${active ? `<button type="button" onclick="saveCurrentProjectFromMenu()">Сохранить сейчас</button>` : ""}
-      ${active ? `<button type="button" onclick="toggleAutosaveFromMenu()">Автосохранение: ${g.autosaveEnabled ? "включено" : "выключено"}</button>` : ""}
-      <button type="button" onclick="exportProjectJSON('${id}')">Экспортировать JSON</button>
-      <button type="button" onclick="importJSON('${id}')">Импорт JSON в этот проект</button>
-      <button type="button" onclick="openProjectHistory('${id}')">История версий</button>
-      <button type="button" class="danger-text" onclick="confirmDeleteProject('${id}')">Удалить</button>
+    <div class="project-menu-layer" style="top:${top}px;right:${right}px">
+      ${active ? `<button type="button" disabled>Открыт</button>` : `<button type="button" data-act="openProject" data-args='["${id}"]'>Открыть</button>`}
+      <button type="button" data-act="startRenameProject" data-args='["${id}"]'>Переименовать</button>
+      ${active ? `<button type="button" data-act="saveCurrentProjectFromMenu">Сохранить сейчас</button>` : ""}
+      ${active ? `<button type="button" data-act="toggleAutosaveFromMenu">Автосохранение: ${g.autosaveEnabled ? "включено" : "выключено"}</button>` : ""}
+      <button type="button" data-act="exportProjectJSON" data-args='["${id}"]'>Экспортировать JSON</button>
+      <button type="button" data-act="importJSON" data-args='["${id}"]'>Импорт JSON в этот проект</button>
+      <button type="button" data-act="openProjectHistory" data-args='["${id}"]'>История версий</button>
+      <button type="button" class="danger-text" data-act="confirmDeleteProject" data-args='["${id}"]'>Удалить</button>
     </div>`;
 }
 
@@ -137,8 +137,8 @@ export function renderRevisionHistory(projectId, revisions) {
             <span>${escText(formatProjectDate(revision.createdAt))}${isCurrent ? " · текущая" : ""}${isPreview ? " · просмотр" : ""}</span>
           </div>
           <div class="revision-actions">
-            ${isCurrent ? `<span class="project-opened">Текущая</span>` : `<button type="button" onclick="openRevisionPreview('${escAttr(activeProject)}', '${escAttr(revision.id)}')">Открыть</button>`}
-            ${isCurrent ? "" : `<button type="button" onclick="confirmRollbackRevision('${escAttr(activeProject)}', '${escAttr(revision.id)}', ${revision.version})">Откатить</button>`}
+            ${isCurrent ? `<span class="project-opened">Текущая</span>` : `<button type="button" data-act="openRevisionPreview" data-args='["${escAttr(activeProject)}","${escAttr(revision.id)}"]'>Открыть</button>`}
+            ${isCurrent ? "" : `<button type="button" data-act="confirmRollbackRevision" data-args='["${escAttr(activeProject)}","${escAttr(revision.id)}",${revision.version}]'>Откатить</button>`}
           </div>
         </div>`;
     }).join("");
@@ -148,16 +148,16 @@ export function renderConfirmDialog() {
   if (!g.confirmDialog) return "";
   const actionButtons = Array.isArray(g.confirmDialog.actions) && g.confirmDialog.actions.length
     ? g.confirmDialog.actions.map((action, i) => `
-          <button type="button" class="${escAttr(action.className || "primary-action")}" onclick="acceptConfirmDialogAction(${i})">${escText(action.text || "Подтвердить")}</button>
+          <button type="button" class="${escAttr(action.className || "primary-action")}" data-act="acceptConfirmDialogAction" data-args='[${i}]'>${escText(action.text || "Подтвердить")}</button>
         `).join("")
-    : `<button type="button" class="${g.confirmDialog.danger ? "danger-action" : "primary-action"}" onclick="acceptConfirmDialog()">${escText(g.confirmDialog.confirmText || "Подтвердить")}</button>`;
+    : `<button type="button" class="${g.confirmDialog.danger ? "danger-action" : "primary-action"}" data-act="acceptConfirmDialog">${escText(g.confirmDialog.confirmText || "Подтвердить")}</button>`;
   return `
     <div class="confirm-backdrop">
       <div class="confirm-dialog">
         <h3>${escText(g.confirmDialog.title || "Подтвердите действие")}</h3>
         <p>${escText(g.confirmDialog.message || "")}</p>
         <div class="confirm-actions">
-          <button type="button" onclick="closeConfirmDialog()">Отмена</button>
+          <button type="button" data-act="closeConfirmDialog">Отмена</button>
           ${actionButtons}
         </div>
       </div>
@@ -167,21 +167,21 @@ export function renderConfirmDialog() {
 export function renderNewProjectDialog() {
   if (!g.newProjectDialogOpen) return "";
   return `
-    <div class="confirm-backdrop" onclick="closeNewProjectDialog()">
-      <form class="confirm-dialog project-name-dialog" onclick="event.stopPropagation()" onsubmit="event.preventDefault();createProjectFromDialog()">
+    <div class="confirm-backdrop" data-act="closeNewProjectDialog" data-self>
+      <form class="confirm-dialog project-name-dialog" data-act="createProjectFromDialog">
         <h3>Новый проект</h3>
         <label>Название
-          <input class="drawer-title-input" value="${escAttr(g.newProjectTitle)}" oninput="g.newProjectTitle=this.value" placeholder="Новый проект" autofocus>
+          <input class="drawer-title-input" value="${escAttr(g.newProjectTitle)}" data-bind="newProjectTitle" placeholder="Новый проект" autofocus>
         </label>
         <label>Тип дайджеста
-          <select class="new-project-type-select" value="${escAttr(g.newProjectType)}" onchange="g.newProjectType=this.value">
+          <select class="new-project-type-select" data-bind="newProjectType">
             <option value="analytical" ${g.newProjectType === "analytical" ? "selected" : ""}>Аналитический</option>
             <option value="farming" ${g.newProjectType === "farming" ? "selected" : ""}>Фермерский</option>
             <option value="company_group" ${g.newProjectType === "company_group" ? "selected" : ""}>Группа компаний</option>
           </select>
         </label>
         <div class="confirm-actions">
-          <button type="button" onclick="closeNewProjectDialog()">Отмена</button>
+          <button type="button" data-act="closeNewProjectDialog">Отмена</button>
           <button type="submit" class="primary-action">Создать</button>
         </div>
       </form>
@@ -193,14 +193,14 @@ export function renderProjectsDrawer() {
   const historyProject = g.historyProjectId ? projectById(g.historyProjectId) : null;
   if (g.historyProjectId) {
     return `
-      <div class="projects-drawer-backdrop" onclick="closeProjectsPanel()">
-        <aside class="projects-drawer" onclick="handleProjectsDrawerClick(event)">
+      <div class="projects-drawer-backdrop" data-act="closeProjectsPanel" data-self>
+        <aside class="projects-drawer">
           <header class="drawer-header">
             <div>
               <h2>История версий</h2>
               <p>${escText(historyProject?.title || "Новый проект")}</p>
             </div>
-            <button type="button" class="drawer-close" onclick="closeProjectHistory()">Назад</button>
+            <button type="button" class="drawer-close" data-act="closeProjectHistory">Назад</button>
           </header>
           <section class="drawer-section history-screen">
             ${g.revisionPreview && g.revisionPreview.projectId === g.historyProjectId ? `
@@ -208,8 +208,8 @@ export function renderProjectsDrawer() {
                 <strong>Просмотр v${g.revisionPreview.version}</strong>
                 <span>Редактирование и автосохранение временно выключены.</span>
                 <div class="drawer-action-row">
-                  <button type="button" onclick="returnToCurrentRevision()">Вернуться к текущей</button>
-                  <button type="button" class="primary-action" onclick="confirmRollbackRevision('${escAttr(g.historyProjectId)}', '${escAttr(g.revisionPreview.id)}', ${g.revisionPreview.version})">Откатить</button>
+                  <button type="button" data-act="returnToCurrentRevision">Вернуться к текущей</button>
+                  <button type="button" class="primary-action" data-act="confirmRollbackRevision" data-args='["${escAttr(g.historyProjectId)}","${escAttr(g.revisionPreview.id)}",${g.revisionPreview.version}]'>Откатить</button>
                 </div>
               </div>` : ""}
             ${g.historyLoading ? `<div class="panel-empty-line">Загружаем версии...</div>` : `<div class="revision-list">${renderRevisionHistory(g.historyProjectId, g.historyRevisions)}</div>`}
@@ -220,18 +220,18 @@ export function renderProjectsDrawer() {
   }
 
   return `
-    <div class="projects-drawer-backdrop" onclick="closeProjectsPanel()">
-      <aside class="projects-drawer" onclick="handleProjectsDrawerClick(event)">
+    <div class="projects-drawer-backdrop" data-act="closeProjectsPanel" data-self>
+      <aside class="projects-drawer">
         <header class="drawer-header">
           <div>
             <h2>Проекты</h2>
             <p>Проекты доступны только вашему аккаунту.</p>
           </div>
-          <button type="button" class="drawer-close" onclick="closeProjectsPanel()">Закрыть</button>
+          <button type="button" class="drawer-close" data-act="closeProjectsPanel">Закрыть</button>
         </header>
 
-        <button type="button" class="drawer-new-project" onclick="openNewProjectDialog()">+ Новый проект</button>
-        <input class="project-search" type="search" placeholder="Поиск проекта..." value="${escAttr(g.projectSearch)}" oninput="setProjectSearch(this.value)">
+        <button type="button" class="drawer-new-project" data-act="openNewProjectDialog">+ Новый проект</button>
+        <input class="project-search" type="search" placeholder="Поиск проекта..." value="${escAttr(g.projectSearch)}" data-act="setProjectSearch" data-args='["$value"]'>
 
         <section class="drawer-section projects-list-section">
           <div class="projects-heading plain-heading">
@@ -259,7 +259,7 @@ export function renderToolbar() {
     <div class="toolbar-id ${g.currentUser.isAdmin ? 'toolbar-id-admin' : ''}">
       ${g.currentUser.isAdmin ? '<span class="toolbar-id-admin-label">Администратор</span>' : '<span class="toolbar-id-label">Код</span>'}
       <span class="toolbar-id-value">${escText(displayId)}</span>
-      <button type="button" class="toolbar-id-copy" onclick="copyUserId()" title="Скопировать">
+      <button type="button" class="toolbar-id-copy" data-act="copyUserId" title="Скопировать">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="9" y="9" width="13" height="13" rx="2"/>
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -307,9 +307,9 @@ export function renderAccountBar() {
           <span class="status-dot"></span>
           <span id="mainSaveStatusText">${escText(saveStatusSummary())}</span>
         </span>
-        ${saveStatusClass() === "error" ? `<button type="button" class="retry-save-button" onclick="saveRemoteNow()">Повторить</button>` : ""}
+        ${saveStatusClass() === "error" ? `<button type="button" class="retry-save-button" data-act="saveRemoteNow">Повторить</button>` : ""}
       </div>
-      <button type="button" class="projects-open-button" onclick="openProjectsPanel()">Проекты</button>
+      <button type="button" class="projects-open-button" data-act="openProjectsPanel">Проекты</button>
     </section>
     ${renderProjectsDrawer()}
     ${renderNewProjectDialog()}

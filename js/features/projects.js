@@ -366,7 +366,7 @@ export function toggleProjectMenu(event, projectId) {
     closeProjectMenu();
     return;
   }
-  const rect = event.currentTarget.getBoundingClientRect();
+  const rect = event.delegateTarget.getBoundingClientRect();
   const menuHeight = 238;
   g.projectMenuOpenId = projectId;
   g.projectMenuPosition = {

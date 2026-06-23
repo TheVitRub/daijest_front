@@ -27,7 +27,21 @@ import { render } from "./render.js";
 import { captureState } from "./state/state.js";
 import { rememberSnapshot } from "./state/history.js";
 import { bootstrapRemoteSession } from "./features/auth.js";
+import { closeProjectMenu } from "./features/projects.js";
 import { attachDelegatedEvents } from "./events.js";
+
+// Close the project 3-dot menu when clicking anywhere outside it (replaces the
+// old stopPropagation + handleProjectsDrawerClick approach, which doesn't work
+// with document-level delegation).
+function attachProjectMenuDismiss() {
+  document.addEventListener("click", (e) => {
+    if (g.projectMenuOpenId &&
+        !e.target.closest(".project-menu-layer") &&
+        !e.target.closest(".project-menu-button")) {
+      closeProjectMenu();
+    }
+  });
+}
 
 // --- Window bridge -------------------------------------------------------
 // Inline on* handlers in the generated HTML run in the global scope and
@@ -79,6 +93,7 @@ function init() {
 
   setupResizeHandle();
   attachDelegatedEvents();
+  attachProjectMenuDismiss();
   loadLocalDraft();
   g.booting = false;
   render(false);

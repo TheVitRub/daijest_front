@@ -9,6 +9,16 @@
 //   data-counter / data-max       (input) update a char-counter element
 //   data-keydown='{"Enter":"fn"}' (keydown) key -> action name
 import { fns } from "./actions.js";
+import { g } from "./store.js";
+
+// data-bind="path" writes el.value into the store (supports nested, e.g.
+// "authDraft.code"). Replaces the old `oninput="g.X=this.value"` handlers.
+function setPath(obj, path, value) {
+  const parts = path.split(".");
+  let o = obj;
+  for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
+  o[parts[parts.length - 1]] = value;
+}
 
 function resolveArgs(raw, el, event) {
   if (!raw) return [];
@@ -27,6 +37,7 @@ function resolveArgs(raw, el, event) {
 function run(name, el, event) {
   const fn = fns[name];
   if (typeof fn !== "function") { console.warn("delegation: unknown action", name); return; }
+  event.delegateTarget = el; // matched element (e.currentTarget is the root under delegation)
   fn(...resolveArgs(el.dataset.args, el, event));
 }
 
@@ -47,15 +58,17 @@ export function attachDelegatedEvents(root = document) {
 
   root.addEventListener("input", (e) => {
     const el = e.target;
-    if (!(el instanceof Element) || !("act" in el.dataset || "counter" in el.dataset)) return;
+    if (!(el instanceof Element)) return;
     if ("act" in el.dataset) run(el.dataset.act, el, e);
-    updateCounter(el);
+    if ("bind" in el.dataset) setPath(g, el.dataset.bind, el.value);
+    if ("counter" in el.dataset) updateCounter(el);
   });
 
   root.addEventListener("change", (e) => {
     const el = e.target;
-    if (!(el instanceof Element) || !("act" in el.dataset)) return;
-    run(el.dataset.act, el, e);
+    if (!(el instanceof Element)) return;
+    if ("act" in el.dataset) run(el.dataset.act, el, e);
+    if ("bind" in el.dataset) setPath(g, el.dataset.bind, el.value);
   });
 
   root.addEventListener("submit", (e) => {

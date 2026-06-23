@@ -52,6 +52,10 @@ export function attachDelegatedEvents(root = document) {
   root.addEventListener("click", (e) => {
     const el = e.target.closest("[data-act]");
     if (!el) return;
+    // Form controls carry data-act for input/change/submit — not click.
+    // (Without this, clicking inside a form[data-act] would fire its submit
+    // action, re-rendering and stealing focus so the field can't be typed in.)
+    if (["FORM", "INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) return;
     if ("self" in el.dataset && e.target !== el) return; // backdrop: only the element itself
     run(el.dataset.act, el, e);
   });

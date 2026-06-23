@@ -12,7 +12,7 @@ import { setSaveStatus } from "../view/status.js";
 import { renderAccountBar } from "../view/account.js";
 import {
   openConfirmDialog, saveRemoteDraft, loadRemoteDigests,
-  refreshProjectListOnly, projectTitleById, safeFileTitle
+  refreshProjectListOnly, projectTitleById, safeFileTitle, closeProjectMenu
 } from "./projects.js";
 
 export function cloneJSON(value) {

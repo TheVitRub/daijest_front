@@ -71,6 +71,8 @@ let adminSearch = "";
 let adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
 let adminDeletingUserId = "";
 let adminEditOpenId = "";
+let adminEditUser = null;
+let adminEditDraftName = "";
 let currentDigestType = "analytical";
 let newProjectType = "analytical";
 let projectsPanelOpen = false;
@@ -423,6 +425,8 @@ function logoutAccount() {
   adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
   adminDeletingUserId = "";
   adminEditOpenId = "";
+  adminEditUser = null;
+  adminEditDraftName = "";
   historyProjectId = "";
   historyRevisions = [];
   historyLoading = false;
@@ -2016,6 +2020,7 @@ async function toggleAdminRole(userId, makeAdmin) {
     if (!res.ok) throw new Error(data.error || "ошибка");
     const idx = adminUsers.findIndex(u => u.id === userId);
     if (idx !== -1) adminUsers[idx] = data.user;
+    if (adminEditUser?.id === userId) adminEditUser = data.user;
     render();
   } catch (e) {
     alert("Не удалось изменить права: " + e.message);
@@ -2031,27 +2036,71 @@ function renderAdminListMeta() {
   const filteredUsers = filteredAdminUsers();
   return `${filteredUsers.length} из ${adminUsers.length}`;
 }
-function openAdminEdit(id, event) {
-  event.stopPropagation();
-  adminEditOpenId = adminEditOpenId === id ? "" : id;
+function openAdminEdit(id) {
+  const user = adminUsers.find(u => u.id === id);
+  if (!user) return;
+  adminEditUser = user;
+  adminEditDraftName = user.name || "";
   render();
 }
+function closeAdminEditModal() {
+  adminEditUser = null;
+  adminEditDraftName = "";
+  render();
+}
+async function saveAdminEditName() {
+  if (!adminEditUser || !adminEditDraftName.trim()) return;
+  try {
+    const res = await apiRequest(`/admin/users/${adminEditUser.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: adminEditDraftName.trim() })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "ошибка");
+    const idx = adminUsers.findIndex(u => u.id === adminEditUser.id);
+    if (idx !== -1) adminUsers[idx] = data.user;
+    adminEditUser = data.user;
+    render();
+  } catch (e) {
+    alert("Не удалось сохранить: " + e.message);
+  }
+}
+function renderAdminEditModal() {
+  if (!adminEditUser) return "";
+  const u = adminEditUser;
+  const isSelf = u.id === currentUser?.id;
+  return `
+    <div class="confirm-backdrop" onclick="closeAdminEditModal()">
+      <div class="admin-edit-modal" onclick="event.stopPropagation()">
+        <div class="admin-edit-modal-header">
+          <span class="admin-edit-modal-title">${escText(u.name || "Пользователь")}</span>
+          ${u.accessCode ? `<code class="admin-user-code">${escText(u.accessCode)}</code>` : ""}
+          ${u.isAdmin ? `<span class="admin-user-admin-badge">Админ</span>` : ""}
+        </div>
+        <div class="admin-edit-modal-body">
+          <label class="admin-edit-label">Имя
+            <input class="admin-edit-input" type="text" value="${escAttr(adminEditDraftName)}"
+              oninput="adminEditDraftName=this.value"
+              onkeydown="if(event.key==='Enter')saveAdminEditName()">
+          </label>
+          <button type="button" class="admin-edit-save-btn" onclick="saveAdminEditName()">Сохранить имя</button>
+        </div>
+        <div class="admin-edit-modal-actions">
+          ${!isSelf ? `<button type="button" class="admin-dd-item" onclick="toggleAdminRole('${escAttr(u.id)}', ${!u.isAdmin})">
+            ${u.isAdmin ? "Снять права администратора" : "Назначить администратором"}
+          </button>` : ""}
+          ${!isSelf ? `<button type="button" class="admin-dd-item admin-dd-danger" onclick="confirmDeleteAdminUser('${escAttr(u.id)}')">
+            Удалить пользователя
+          </button>` : ""}
+        </div>
+        <button type="button" class="admin-edit-close-btn" onclick="closeAdminEditModal()">Закрыть</button>
+      </div>
+    </div>`;
+}
 function renderAdminUserList() {
-  const filteredUsers = filteredAdminUsers();
-  const visibleUsers = filteredUsers.slice(0, adminVisibleLimit);
+  const visibleUsers = adminUsers.slice(0, adminVisibleLimit);
   const rows = visibleUsers.map(u => {
     const isSelf = u.id === currentUser?.id;
-    const editOpen = adminEditOpenId === u.id;
-    const deleting = adminDeletingUserId === u.id;
-    const dropdown = editOpen ? `
-      <div class="admin-user-dropdown" onclick="event.stopPropagation()">
-        <button type="button" class="admin-dd-item" onclick="toggleAdminRole('${escAttr(u.id)}', ${!u.isAdmin})">
-          ${u.isAdmin ? "Снять права администратора" : "Сделать администратором"}
-        </button>
-        <button type="button" class="admin-dd-item admin-dd-danger" onclick="confirmDeleteAdminUser('${escAttr(u.id)}')" ${deleting ? "disabled" : ""}>
-          ${deleting ? "Удаление..." : "Удалить пользователя"}
-        </button>
-      </div>` : "";
     return `
     <div class="admin-user-row">
       <div class="admin-user-info">
@@ -2062,28 +2111,22 @@ function renderAdminUserList() {
         ${isSelf ? `<span class="admin-user-self">Это вы</span>` : ""}
       </div>
       <div class="admin-user-actions">
-        ${!isSelf ? `
-          <div class="admin-edit-wrap">
-            <button type="button" class="admin-user-edit-btn ${editOpen ? 'active' : ''}" onclick="openAdminEdit('${escAttr(u.id)}', event)" title="Редактировать">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </button>
-            ${dropdown}
-          </div>` : ""}
+        ${!isSelf ? `<button type="button" class="admin-user-edit-btn" onclick="openAdminEdit('${escAttr(u.id)}')" title="Редактировать">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>` : ""}
       </div>
     </div>`;
   }).join("");
-  return filteredUsers.length ? rows : `<div class="panel-empty-line">${adminUsers.length ? "Ничего не найдено" : "Нет пользователей"}</div>`;
+  return adminUsers.length ? rows : `<div class="panel-empty-line">Нет пользователей</div>`;
 }
 function renderAdminListFooter() {
   const filteredUsers = filteredAdminUsers();
   const visibleCount = Math.min(adminVisibleLimit, filteredUsers.length);
   const hasMoreUsers = filteredUsers.length > visibleCount;
-  return `
-    ${hasMoreUsers ? `<button type="button" class="admin-load-more" onclick="showMoreAdminUsers()">Показать ещё ${Math.min(ADMIN_USERS_PAGE_SIZE, filteredUsers.length - visibleCount)}</button>` : ""}
-    <button type="button" class="admin-refresh-btn" onclick="loadAdminUsers()">Обновить список</button>`;
+  return hasMoreUsers ? `<button type="button" class="admin-load-more" onclick="showMoreAdminUsers()">Показать ещё ${Math.min(ADMIN_USERS_PAGE_SIZE, filteredUsers.length - visibleCount)}</button>` : "";
 }
 function syncAdminUserList() {
   const list = document.getElementById("adminUserList");
@@ -2112,7 +2155,6 @@ function renderAdminSection() {
         <input class="project-search" style="flex:1;margin:0" type="text" placeholder="Имя нового пользователя..." value="${escAttr(adminNewUserName)}" oninput="adminNewUserName=this.value">
         <button type="submit" class="admin-create-btn" ${adminBusy ? "disabled" : ""}>${adminBusy ? "..." : "Создать"}</button>
       </form>
-      <input class="project-search admin-user-search" type="search" placeholder="Поиск по пользователям..." value="${escAttr(adminSearch)}" oninput="setAdminSearch(this.value)">
       ${adminError ? `<div class="auth-error" style="margin:0 0 8px">${escText(adminError)}</div>` : ""}
       <div id="adminUserList" class="admin-user-list">
         ${renderAdminUserList()}
@@ -2192,7 +2234,8 @@ function renderAccountBar() {
     </section>
     ${renderProjectsDrawer()}
     ${renderNewProjectDialog()}
-    ${renderConfirmDialog()}`;
+    ${renderConfirmDialog()}
+    ${renderAdminEditModal()}`;
 }
 
 // ============================================================

@@ -15,6 +15,13 @@ export function initTextareas() {
     ta.addEventListener('input', () => autoGrow(ta), { once: false });
   });
 }
+// Trigger a hidden <input type=file> by id (used by "add media/cover" buttons).
+export function clickInput(id) { document.getElementById(id)?.click(); }
+// Toggle a company's "add block" menu (DOM-only).
+export function toggleAddMenu(compKey) {
+  const menu = document.querySelector(`[data-addmenu="${compKey}"]`);
+  if (menu) menu.classList.toggle("open");
+}
 export function readFileAsDataURL(file) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -62,10 +69,10 @@ export function digestCoverEditorHTML() {
     ? `<div class="media-row">
          <div class="media-thumb">
            <img src="${state.digestCover}">
-           <button class="media-del" onclick="removeDigestCover()">✕</button>
+           <button class="media-del" data-act="removeDigestCover">✕</button>
          </div>
        </div>`
-    : `<button class="media-add-btn" onclick="document.getElementById('digestCoverInput').click()">
+    : `<button class="media-add-btn" data-act="clickInput" data-args='["digestCoverInput"]'>
          Загрузить обложку +<br>
          <small style="font-weight:400;opacity:0.7">PNG · рекомендуемый размер: 2360 × 835 px</small>
        </button>`;
@@ -76,7 +83,7 @@ export function digestCoverEditorHTML() {
       </div>
       <div class="letter-body">
         ${imgHTML}
-        <input type="file" id="digestCoverInput" accept="image/*" style="display:none" onchange="loadDigestCover(this.files)">
+        <input type="file" id="digestCoverInput" accept="image/*" style="display:none" data-act="loadDigestCover" data-args='["$files"]'>
       </div>
     </div>`;
 }
@@ -96,28 +103,28 @@ export function letterEditorHTML() {
     ? `<div class="media-row">
          <div class="media-thumb">
            <img src="${l.cover}">
-           <button class="media-del" onclick="removeLetterCover()">✕</button>
+           <button class="media-del" data-act="removeLetterCover">✕</button>
          </div>
        </div>`
-    : `<button class="media-add-btn" onclick="document.getElementById('letterCoverInput').click()">Добавить обложку +</button>`;
+    : `<button class="media-add-btn" data-act="clickInput" data-args='["letterCoverInput"]'>Добавить обложку +</button>`;
   return `
     <div class="letter-section ${l.collapsed ? 'collapsed' : ''}">
-      <div class="letter-head" onclick="toggleLetterSection()">
+      <div class="letter-head" data-act="toggleLetterSection">
         <span class="letter-title">Обращение редакции</span>
         <span>${collapseIcon(l.collapsed)}</span>
       </div>
       <div class="letter-body">
         <label>Заголовок</label>
-        <input type="text" maxlength="200" value="${escAttr(l.title)}" oninput="updateLetterField('title',this.value);document.getElementById('cc_ltitle').textContent=this.value.length+'/200'">
+        <input type="text" maxlength="200" value="${escAttr(l.title)}" data-act="updateLetterField" data-args='["title","$value"]' data-counter="cc_ltitle" data-max="200">
         <div class="char-counter" id="cc_ltitle">${(l.title||'').length}/200</div>
         <label>Текст (каждый абзац — с новой строки)</label>
-        <textarea maxlength="600" oninput="updateLetterField('paragraphs',this.value);document.getElementById('cc_lpara').textContent=this.value.length+'/600'" style="min-height:90px">${escText(l.paragraphs)}</textarea>
+        <textarea maxlength="600" data-act="updateLetterField" data-args='["paragraphs","$value"]' data-counter="cc_lpara" data-max="600" style="min-height:90px">${escText(l.paragraphs)}</textarea>
         <div class="char-counter" id="cc_lpara">${(l.paragraphs||'').length}/600</div>
         <label>Подпись</label>
-        <input type="text" value="${escAttr(l.signature)}" oninput="updateLetterField('signature',this.value)">
+        <input type="text" value="${escAttr(l.signature)}" data-act="updateLetterField" data-args='["signature","$value"]'>
         <label>Обложка</label>
         ${coverHTML}
-        <input type="file" id="letterCoverInput" accept="image/*" style="display:none" onchange="loadLetterCover(this.files)">
+        <input type="file" id="letterCoverInput" accept="image/*" style="display:none" data-act="loadLetterCover" data-args='["$files"]'>
       </div>
     </div>
   `;
@@ -145,25 +152,25 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
       const src = typeof p === 'string' ? p : p.src;
       return `<div class="media-thumb">
         <img src="${src}">
-        <button class="media-del" onclick="removeItemPhoto('${compKey}','${blockId}',${idx},${pi})">✕</button>
+        <button class="media-del" data-act="removeItemPhoto" data-args='["${compKey}","${blockId}",${idx},${pi}]'>✕</button>
       </div>`;
     }).join("");
     return `
       <div class="item-block" ${itemDragAttrs(compKey, blockId, idx)}>
         <div class="item-del-row">
           ${ITEM_DRAG_HANDLE}
-          <button class="item-del-btn" onclick="removeItem('${compKey}','${blockId}',${idx})">✕</button>
+          <button class="item-del-btn" data-act="removeItem" data-args='["${compKey}","${blockId}",${idx}]'>✕</button>
         </div>
-        <input type="text" placeholder="Заголовок новости" maxlength="600" value="${escAttr(item.title || '')}" oninput="updateItemField('${compKey}','${blockId}',${idx},'title',this.value);document.getElementById('cc_t_${blockId}_${idx}').textContent=this.value.length+'/600'">
+        <input type="text" placeholder="Заголовок новости" maxlength="600" value="${escAttr(item.title || '')}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"title","$value"]' data-counter="cc_t_${blockId}_${idx}" data-max="600">
         <div class="char-counter" id="cc_t_${blockId}_${idx}">${(item.title||'').length}/600</div>
-        <textarea placeholder="Текст новости" maxlength="600" oninput="updateItemField('${compKey}','${blockId}',${idx},'text',this.value);document.getElementById('cc_p_${blockId}_${idx}').textContent=this.value.length+'/600'">${escText(item.text || '')}</textarea>
+        <textarea placeholder="Текст новости" maxlength="600" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"text","$value"]' data-counter="cc_p_${blockId}_${idx}" data-max="600">${escText(item.text || '')}</textarea>
         <div class="char-counter" id="cc_p_${blockId}_${idx}">${(item.text||'').length}/600</div>
         ${photos ? `<div class="media-row">${photos}</div>` : ""}
-        <button class="media-add-btn" onclick="showRatioModal('${compKey}','${blockId}',${idx})">Добавить медиа +</button>
-        <input type="file" id="mi_${blockId}_${idx}" accept="image/*" multiple style="display:none" onchange="loadItemPhotos('${compKey}','${blockId}',${idx},this.files)">
+        <button class="media-add-btn" data-act="showRatioModal" data-args='["${compKey}","${blockId}",${idx}]'>Добавить медиа +</button>
+        <input type="file" id="mi_${blockId}_${idx}" accept="image/*" multiple style="display:none" data-act="loadItemPhotos" data-args='["${compKey}","${blockId}",${idx},"$files"]'>
         <div class="layout-toggle">
-          <button class="layout-btn ${(item.photoLayout||'bottom')==='bottom'?'active':''}" onclick="updateItemField('${compKey}','${blockId}',${idx},'photoLayout','bottom')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg> Снизу</button>
-          <button class="layout-btn ${item.photoLayout==='side'?'active':''}" onclick="updateItemField('${compKey}','${blockId}',${idx},'photoLayout','side')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> Сбоку</button>
+          <button class="layout-btn ${(item.photoLayout||'bottom')==='bottom'?'active':''}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"photoLayout","bottom"]'><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg> Снизу</button>
+          <button class="layout-btn ${item.photoLayout==='side'?'active':''}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"photoLayout","side"]'><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> Сбоку</button>
         </div>
       </div>`;
   }
@@ -172,18 +179,18 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
   const tilesHTML = tiles.map((tile, ti) => `
     <div class="metric-tile-row">
       <div class="row2">
-        <input type="text" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" oninput="updateMetricTile('${compKey}','${blockId}',${idx},${ti},'value',this.value)">
-        <input type="text" placeholder="Подпись" value="${escAttr(tile.label||'')}" oninput="updateMetricTile('${compKey}','${blockId}',${idx},${ti},'label',this.value)">
+        <input type="text" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"value","$value"]'>
+        <input type="text" placeholder="Подпись" value="${escAttr(tile.label||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"label","$value"]'>
       </div>
       <div class="row2" style="margin-top:4px;">
-        <input type="text" placeholder="Динамика (опц.)" value="${escAttr(tile.delta||'')}" oninput="updateMetricTile('${compKey}','${blockId}',${idx},${ti},'delta',this.value)">
+        <input type="text" placeholder="Динамика (опц.)" value="${escAttr(tile.delta||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"delta","$value"]'>
         <div style="display:flex;gap:6px;align-items:center;min-width:0;overflow:hidden;">
-          <select style="flex:1;min-width:0;width:0" onchange="updateMetricTile('${compKey}','${blockId}',${idx},${ti},'direction',this.value)">
+          <select style="flex:1;min-width:0;width:0" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"direction","$value"]'>
             <option value="up"   ${tile.direction==='up'   ?'selected':''}>🟢 рост</option>
             <option value="down" ${tile.direction==='down' ?'selected':''}>🔴 падение</option>
             <option value="none" ${tile.direction==='none' ?'selected':''}>⚪ нейтрально</option>
           </select>
-          ${tiles.length > 1 ? `<button class="item-del-btn" onclick="removeMetricTile('${compKey}','${blockId}',${idx},${ti})">✕</button>` : ''}
+          ${tiles.length > 1 ? `<button class="item-del-btn" data-act="removeMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti}]'>✕</button>` : ''}
         </div>
       </div>
     </div>`).join('<div class="metric-tile-sep"></div>');
@@ -192,10 +199,10 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
       <div class="item-del-row">
         ${ITEM_DRAG_HANDLE}
         <span class="metric-label-tag">Метрика</span>
-        <button class="item-del-btn" onclick="removeItem('${compKey}','${blockId}',${idx})">✕</button>
+        <button class="item-del-btn" data-act="removeItem" data-args='["${compKey}","${blockId}",${idx}]'>✕</button>
       </div>
       ${tilesHTML}
-      <button class="add-tile-btn" onclick="addMetricTile('${compKey}','${blockId}',${idx})">+ Добавить ещё</button>
+      <button class="add-tile-btn" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>+ Добавить ещё</button>
     </div>`;
 }
 export function blockEditorHTML(compKey, block) {
@@ -213,19 +220,19 @@ export function blockEditorHTML(compKey, block) {
         <span class="drag-handle" onmousedown="this.closest('.block-card').draggable=true" onmouseup="this.closest('.block-card').draggable=false"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="9" cy="19" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="15" cy="19" r="2"/></svg></span>
         <span class="block-badge" style="background:${meta.color}">${label}</span>
         <span class="block-actions">
-          <button class="icon-btn" onclick="moveBlock('${compKey}','${block.id}',-1)" title="Вверх"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
-          <button class="icon-btn" onclick="moveBlock('${compKey}','${block.id}',1)"  title="Вниз"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></button>
-          <button class="icon-btn" onclick="removeBlock('${compKey}','${block.id}')" title="Удалить"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
-          <button class="icon-btn" onclick="toggleBlock('${compKey}','${block.id}')">${collapseIcon(block.collapsed)}</button>
+          <button class="icon-btn" data-act="moveBlock" data-args='["${compKey}","${block.id}",-1]' title="Вверх"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
+          <button class="icon-btn" data-act="moveBlock" data-args='["${compKey}","${block.id}",1]'  title="Вниз"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></button>
+          <button class="icon-btn" data-act="removeBlock" data-args='["${compKey}","${block.id}"]' title="Удалить"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+          <button class="icon-btn" data-act="toggleBlock" data-args='["${compKey}","${block.id}"]'>${collapseIcon(block.collapsed)}</button>
         </span>
       </div>
       <div class="block-body">
         ${items}
         <div class="item-add-row">
-          <button class="add-item-btn" onclick="addItem('${compKey}','${block.id}','news')">Новость +</button>
-          <button class="add-item-btn" onclick="addItem('${compKey}','${block.id}','metric')">Метрика +</button>
+          <button class="add-item-btn" data-act="addItem" data-args='["${compKey}","${block.id}","news"]'>Новость +</button>
+          <button class="add-item-btn" data-act="addItem" data-args='["${compKey}","${block.id}","metric"]'>Метрика +</button>
         </div>
-        <input type="text" class="comment-input" placeholder="Комментарий" value="${escAttr(block.comment || '')}" oninput="updateBlockField('${compKey}','${block.id}','comment',this.value)">
+        <input type="text" class="comment-input" placeholder="Комментарий" value="${escAttr(block.comment || '')}" data-act="updateBlockField" data-args='["${compKey}","${block.id}","comment","$value"]'>
       </div>
     </div>`;
 }
@@ -237,23 +244,23 @@ export function companyEditorHTML(compState) {
   const meta     = getCompMeta(compState.key);
   const blocks   = compState.blocks.map(b => blockEditorHTML(compState.key, b)).join("");
   const addItems = BLOCK_TYPES.map(t =>
-    `<div class="add-menu-item" onclick="addBlock('${compState.key}','${t.key}')">${t.label}</div>`
+    `<div class="add-menu-item" data-act="addBlock" data-args='["${compState.key}","${t.key}"]'>${t.label}</div>`
   ).join("");
   return `
     <div class="company-section ${compState.collapsed ? 'collapsed' : ''}">
-      <div class="company-head" onclick="toggleCompany('${compState.key}')">
+      <div class="company-head" data-act="toggleCompany" data-args='["${compState.key}"]'>
         <span class="company-dot" style="background:${meta.color}"></span>
         <span class="company-name">${escText(meta.name)}</span>
-        <span class="company-actions" onclick="event.stopPropagation()">
-          <button type="button" class="company-json-btn" onclick="importCompanyJSON('${compState.key}')" title="Импорт JSON в ${escAttr(meta.name)}">Импорт</button>
-          <button type="button" class="company-json-btn" onclick="exportCompanyJSON('${compState.key}')" title="Экспорт JSON из ${escAttr(meta.name)}">Экспорт</button>
+        <span class="company-actions">
+          <button type="button" class="company-json-btn" data-act="importCompanyJSON" data-args='["${compState.key}"]' title="Импорт JSON в ${escAttr(meta.name)}">Импорт</button>
+          <button type="button" class="company-json-btn" data-act="exportCompanyJSON" data-args='["${compState.key}"]' title="Экспорт JSON из ${escAttr(meta.name)}">Экспорт</button>
         </span>
         <span class="company-chevron">${collapseIcon(compState.collapsed)}</span>
       </div>
       <div class="company-body">
         ${blocks}
         <div class="add-block-wrap">
-          <div class="add-block-trigger" onclick="toggleAddMenu('${compState.key}')">Новый блок <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+          <div class="add-block-trigger" data-act="toggleAddMenu" data-args='["${compState.key}"]'>Новый блок <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
           <div class="add-block-menu" data-addmenu="${compState.key}">${addItems}</div>
         </div>
       </div>

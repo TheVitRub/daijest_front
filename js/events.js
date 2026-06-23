@@ -60,10 +60,15 @@ export function attachDelegatedEvents(root = document) {
     run(el.dataset.act, el, e);
   });
 
+  // Route data-act to ONE event per control: text/textarea -> input,
+  // select/file -> change. (File inputs fire BOTH input and change for a single
+  // selection; running data-act on both would, e.g., add each photo twice.)
+  const usesChange = (el) => el.tagName === "SELECT" || el.type === "file";
+
   root.addEventListener("input", (e) => {
     const el = e.target;
     if (!(el instanceof Element)) return;
-    if ("act" in el.dataset) run(el.dataset.act, el, e);
+    if ("act" in el.dataset && !usesChange(el)) run(el.dataset.act, el, e);
     if ("bind" in el.dataset) setPath(g, el.dataset.bind, el.value);
     if ("counter" in el.dataset) updateCounter(el);
   });
@@ -71,8 +76,8 @@ export function attachDelegatedEvents(root = document) {
   root.addEventListener("change", (e) => {
     const el = e.target;
     if (!(el instanceof Element)) return;
-    if ("act" in el.dataset) run(el.dataset.act, el, e);
-    if ("bind" in el.dataset) setPath(g, el.dataset.bind, el.value);
+    if ("act" in el.dataset && usesChange(el)) run(el.dataset.act, el, e);
+    if ("bind" in el.dataset && el.tagName === "SELECT") setPath(g, el.dataset.bind, el.value);
   });
 
   root.addEventListener("submit", (e) => {

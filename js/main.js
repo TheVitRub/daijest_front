@@ -27,6 +27,7 @@ import { render } from "./render.js";
 import { captureState } from "./state/state.js";
 import { rememberSnapshot } from "./state/history.js";
 import { bootstrapRemoteSession } from "./features/auth.js";
+import { attachDelegatedEvents } from "./events.js";
 
 // --- Window bridge -------------------------------------------------------
 // Inline on* handlers in the generated HTML run in the global scope and
@@ -77,6 +78,7 @@ function init() {
   g.autosaveEnabled = safeStorageGet(AUTOSAVE_ENABLED_KEY) !== "false";
 
   setupResizeHandle();
+  attachDelegatedEvents();
   loadLocalDraft();
   g.booting = false;
   render(false);

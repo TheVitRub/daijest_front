@@ -15,7 +15,7 @@
     <div class="toolbar">
       <div class="toolbar-top">
         <div id="toolbarUserInfo" class="toolbar-user-info"></div>
-        <button id="toolbarLogoutBtn" class="toolbar-logout-btn" onclick="logoutAccount()" title="Выйти" hidden>
+        <button id="toolbarLogoutBtn" class="toolbar-logout-btn" data-act="logoutAccount" title="Выйти" hidden>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             <polyline points="16 17 21 12 16 7"/>
@@ -24,14 +24,14 @@
         </button>
       </div>
       <div class="export-cards">
-        <button class="export-card export-pdf" onclick="exportPDF()">
+        <button class="export-card export-pdf" data-act="exportPDF">
           <svg class="ec-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
           <div class="ec-texts">
             <div class="ec-title">Скачать PDF</div>
             <div class="ec-sub">Один файл · все страницы</div>
           </div>
         </button>
-        <button class="export-card export-png" id="exportPngBtn" onclick="exportPNG()">
+        <button class="export-card export-png" id="exportPngBtn" data-act="exportPNG">
           <svg class="ec-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           <div class="ec-texts">
             <div class="ec-title">PNG</div>
@@ -56,28 +56,28 @@
 <input type="file" id="fileInput" accept=".json" style="display:none">
 <input type="file" id="companyFileInput" accept=".json,application/json" style="display:none">
 
-<div id="ratioModal" class="ratio-modal-overlay" onclick="if(event.target===this)closeRatioModal()">
+<div id="ratioModal" class="ratio-modal-overlay" data-act="closeRatioModal" data-self>
   <div class="ratio-modal">
     <div class="ratio-modal-title">Выберите соотношение сторон</div>
     <div class="ratio-modal-options">
-      <button onclick="confirmRatio('4/3')">
+      <button data-act="confirmRatio" data-args='["4/3"]'>
         <div class="ratio-vis" style="aspect-ratio:4/3"></div>
         <span>4:3</span>
       </button>
-      <button onclick="confirmRatio('16/9')">
+      <button data-act="confirmRatio" data-args='["16/9"]'>
         <div class="ratio-vis" style="aspect-ratio:16/9"></div>
         <span>16:9</span>
       </button>
-      <button onclick="confirmRatio('1/1')">
+      <button data-act="confirmRatio" data-args='["1/1"]'>
         <div class="ratio-vis" style="aspect-ratio:1/1"></div>
         <span>1:1</span>
       </button>
-      <button onclick="confirmRatio('9/16')">
+      <button data-act="confirmRatio" data-args='["9/16"]'>
         <div class="ratio-vis" style="aspect-ratio:9/16"></div>
         <span>9:16</span>
       </button>
     </div>
-    <button class="ratio-cancel" onclick="closeRatioModal()">Отмена</button>
+    <button class="ratio-cancel" data-act="closeRatioModal">Отмена</button>
   </div>
 </div>
 

@@ -72,4 +72,31 @@ export function attachDelegatedEvents(root = document) {
     const name = map[e.key];
     if (name) run(name, el, e);
   });
+
+  // Drag & drop: data-dragstart/dragend/dragover/drop = action name,
+  // data-dargs = JSON positional args (the DOM event is passed first).
+  for (const type of ["dragstart", "dragend", "dragover", "drop"]) {
+    root.addEventListener(type, (e) => {
+      const el = e.target.closest(`[data-${type}]`);
+      if (!el) return;
+      const fn = fns[el.dataset[type]];
+      if (typeof fn !== "function") return;
+      const args = el.dataset.dargs ? JSON.parse(el.dataset.dargs) : [];
+      // Under delegation e.currentTarget is the root; expose the matched
+      // element so handlers can reference it (they use e.delegateTarget).
+      e.delegateTarget = el;
+      fn(e, ...args);
+    });
+  }
+
+  // Drag handles: data-draghandle="<ancestor selector>" toggles that
+  // ancestor's draggable flag while the handle is pressed.
+  const setDraggable = (e, on) => {
+    const h = e.target.closest("[data-draghandle]");
+    if (!h) return;
+    const node = h.closest(h.dataset.draghandle);
+    if (node) node.draggable = on;
+  };
+  root.addEventListener("mousedown", (e) => setDraggable(e, true));
+  root.addEventListener("mouseup", (e) => setDraggable(e, false));
 }

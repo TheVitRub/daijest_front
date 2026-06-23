@@ -212,12 +212,10 @@ export function blockEditorHTML(compKey, block) {
   return `
     <div class="block-card ${block.collapsed ? 'collapsed' : ''}" data-id="${block.id}"
          draggable="false"
-         ondragstart="onDragStart(event,'${compKey}','${block.id}')"
-         ondragend="onDragEnd(event)"
-         ondragover="onDragOver(event,'${compKey}','${block.id}')"
-         ondrop="onDrop(event,'${compKey}','${block.id}')">
+         data-dragstart="onDragStart" data-dragend="onDragEnd" data-dragover="onDragOver" data-drop="onDrop"
+         data-dargs='["${compKey}","${block.id}"]'>
       <div class="block-head">
-        <span class="drag-handle" onmousedown="this.closest('.block-card').draggable=true" onmouseup="this.closest('.block-card').draggable=false"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="9" cy="19" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="15" cy="19" r="2"/></svg></span>
+        <span class="drag-handle" data-draghandle=".block-card"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="9" cy="19" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="15" cy="19" r="2"/></svg></span>
         <span class="block-badge" style="background:${meta.color}">${label}</span>
         <span class="block-actions">
           <button class="icon-btn" data-act="moveBlock" data-args='["${compKey}","${block.id}",-1]' title="Вверх"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>

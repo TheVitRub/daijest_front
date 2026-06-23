@@ -119,7 +119,7 @@ export async function exportPNG() {
   const pages = Array.from(document.querySelectorAll('#preview .page'));
   if (!pages.length) return;
 
-  const btn = document.querySelector('button[onclick="exportPNG()"]');
+  const btn = document.querySelector('.export-png');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Генерация...'; }
 
   try {

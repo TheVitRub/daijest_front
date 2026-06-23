@@ -18,18 +18,18 @@ export function onDragStart(e, compKey, blockId) {
   dragSrcBlockId = blockId;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', blockId);
-  setTimeout(() => { if (e.currentTarget) e.currentTarget.style.opacity = '0.4'; }, 0);
+  setTimeout(() => { if (e.delegateTarget) e.delegateTarget.style.opacity = '0.4'; }, 0);
 }
 export function onDragEnd(e) {
-  e.currentTarget.style.opacity = '';
-  e.currentTarget.draggable = false;
+  e.delegateTarget.style.opacity = '';
+  e.delegateTarget.draggable = false;
   clearDragOver();
 }
 export function onDragOver(e, compKey, blockId) {
   e.preventDefault();
   if (dragSrcBlockId === blockId) return;
   clearDragOver();
-  e.currentTarget.classList.add('drag-over');
+  e.delegateTarget.classList.add('drag-over');
 }
 export function onDrop(e, compKey, blockId) {
   e.stopPropagation();
@@ -64,19 +64,19 @@ export function onItemDragStart(e, compKey, blockId, idx) {
   dragSrcItemBlockId = blockId;
   dragSrcItemIdx     = idx;
   e.dataTransfer.effectAllowed = 'move';
-  setTimeout(() => { if (e.currentTarget) e.currentTarget.style.opacity = '0.4'; }, 0);
+  setTimeout(() => { if (e.delegateTarget) e.delegateTarget.style.opacity = '0.4'; }, 0);
 }
 export function onItemDragEnd(e) {
-  e.currentTarget.style.opacity = '';
-  e.currentTarget.draggable = false;
+  e.delegateTarget.style.opacity = '';
+  e.delegateTarget.draggable = false;
   clearItemDragOver();
 }
 export function onItemDragOver(e, compKey, blockId, idx) {
   e.preventDefault(); e.stopPropagation();
   clearItemDragOver();
-  const rect = e.currentTarget.getBoundingClientRect();
+  const rect = e.delegateTarget.getBoundingClientRect();
   dragInsertBefore = e.clientY < rect.top + rect.height / 2;
-  e.currentTarget.classList.add(dragInsertBefore ? 'insert-before' : 'insert-after');
+  e.delegateTarget.classList.add(dragInsertBefore ? 'insert-before' : 'insert-after');
 }
 export function onItemDrop(e, compKey, blockId, idx) {
   e.stopPropagation();
@@ -120,11 +120,11 @@ export function onMetricsGroupDragStart(e, compKey, blockId) {
   dragSrcItemIdx = null;
   dragSrcIsMetricsGroup = true;
   e.dataTransfer.effectAllowed = 'move';
-  setTimeout(() => { if (e.currentTarget) e.currentTarget.style.opacity = '0.4'; }, 0);
+  setTimeout(() => { if (e.delegateTarget) e.delegateTarget.style.opacity = '0.4'; }, 0);
 }
 export function onMetricsGroupDragEnd(e) {
-  e.currentTarget.style.opacity = '';
-  e.currentTarget.draggable = false;
+  e.delegateTarget.style.opacity = '';
+  e.delegateTarget.draggable = false;
   clearItemDragOver();
   dragSrcIsMetricsGroup = false;
 }
@@ -132,9 +132,9 @@ export function onMetricsGroupDragOver(e, compKey, blockId) {
   e.preventDefault(); e.stopPropagation();
   if (dragSrcItemCompKey !== compKey || dragSrcItemBlockId !== blockId || dragSrcIsMetricsGroup) return;
   clearItemDragOver();
-  const rect = e.currentTarget.getBoundingClientRect();
+  const rect = e.delegateTarget.getBoundingClientRect();
   dragInsertBefore = e.clientY < rect.top + rect.height / 2;
-  e.currentTarget.classList.add(dragInsertBefore ? 'insert-before' : 'insert-after');
+  e.delegateTarget.classList.add(dragInsertBefore ? 'insert-before' : 'insert-after');
 }
 export function onMetricsGroupDrop(e, compKey, blockId) {
   e.stopPropagation();

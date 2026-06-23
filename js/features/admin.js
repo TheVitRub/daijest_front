@@ -142,8 +142,8 @@ export function renderAdminEditModal() {
   const u = g.adminEditUser;
   const isSelf = u.id === g.currentUser?.id;
   return `
-    <div class="confirm-backdrop" onclick="closeAdminEditModal()">
-      <div class="admin-edit-modal" onclick="event.stopPropagation()">
+    <div class="confirm-backdrop" data-act="closeAdminEditModal" data-self>
+      <div class="admin-edit-modal">
         <div class="admin-edit-modal-header">
           <span class="admin-edit-modal-title">${escText(u.name || "Пользователь")}</span>
           ${u.accessCode ? `<code class="admin-user-code">${escText(u.accessCode)}</code>` : ""}
@@ -152,20 +152,19 @@ export function renderAdminEditModal() {
         <div class="admin-edit-modal-body">
           <label class="admin-edit-label">Имя
             <input class="admin-edit-input" type="text" value="${escAttr(g.adminEditDraftName)}"
-              oninput="g.adminEditDraftName=this.value"
-              onkeydown="if(event.key==='Enter')saveAdminEditName()">
+              data-bind="adminEditDraftName" data-keydown='{"Enter":"saveAdminEditName"}'>
           </label>
-          <button type="button" class="admin-edit-save-btn" onclick="saveAdminEditName()">Сохранить имя</button>
+          <button type="button" class="admin-edit-save-btn" data-act="saveAdminEditName">Сохранить имя</button>
         </div>
         <div class="admin-edit-modal-actions">
-          ${!isSelf ? `<button type="button" class="admin-dd-item" onclick="toggleAdminRole('${escAttr(u.id)}', ${!u.isAdmin})">
+          ${!isSelf ? `<button type="button" class="admin-dd-item" data-act="toggleAdminRole" data-args='["${escAttr(u.id)}",${!u.isAdmin}]'>
             ${u.isAdmin ? "Снять права администратора" : "Назначить администратором"}
           </button>` : ""}
-          ${!isSelf ? `<button type="button" class="admin-dd-item admin-dd-danger" onclick="confirmDeleteAdminUser('${escAttr(u.id)}')">
+          ${!isSelf ? `<button type="button" class="admin-dd-item admin-dd-danger" data-act="confirmDeleteAdminUser" data-args='["${escAttr(u.id)}"]'>
             Удалить пользователя
           </button>` : ""}
         </div>
-        <button type="button" class="admin-edit-close-btn" onclick="closeAdminEditModal()">Закрыть</button>
+        <button type="button" class="admin-edit-close-btn" data-act="closeAdminEditModal">Закрыть</button>
       </div>
     </div>`;
 }
@@ -183,7 +182,7 @@ export function renderAdminUserList() {
         ${isSelf ? `<span class="admin-user-self">Это вы</span>` : ""}
       </div>
       <div class="admin-user-actions">
-        ${!isSelf ? `<button type="button" class="admin-user-edit-btn" onclick="openAdminEdit('${escAttr(u.id)}')" title="Редактировать">
+        ${!isSelf ? `<button type="button" class="admin-user-edit-btn" data-act="openAdminEdit" data-args='["${escAttr(u.id)}"]' title="Редактировать">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -198,7 +197,7 @@ export function renderAdminListFooter() {
   const filteredUsers = filteredAdminUsers();
   const visibleCount = Math.min(g.adminVisibleLimit, filteredUsers.length);
   const hasMoreUsers = filteredUsers.length > visibleCount;
-  return hasMoreUsers ? `<button type="button" class="admin-load-more" onclick="showMoreAdminUsers()">Показать ещё ${Math.min(ADMIN_USERS_PAGE_SIZE, filteredUsers.length - visibleCount)}</button>` : "";
+  return hasMoreUsers ? `<button type="button" class="admin-load-more" data-act="showMoreAdminUsers">Показать ещё ${Math.min(ADMIN_USERS_PAGE_SIZE, filteredUsers.length - visibleCount)}</button>` : "";
 }
 export function syncAdminUserList() {
   const list = document.getElementById("adminUserList");
@@ -214,7 +213,7 @@ export function renderAdminSection() {
     return `
       <section class="drawer-section">
         <div class="projects-heading plain-heading"><span>Администратор</span></div>
-        <button type="button" class="drawer-new-project" onclick="openAdminPanel()">Управление пользователями</button>
+        <button type="button" class="drawer-new-project" data-act="openAdminPanel">Управление пользователями</button>
       </section>`;
   }
   return `
@@ -223,8 +222,8 @@ export function renderAdminSection() {
         <span>Пользователи</span>
         <small id="adminListMeta" class="admin-list-meta">${renderAdminListMeta()}</small>
       </div>
-      <form class="admin-create-form" onsubmit="event.preventDefault(); createAdminUser()">
-        <input class="project-search" style="flex:1;margin:0" type="text" placeholder="Имя нового пользователя..." value="${escAttr(g.adminNewUserName)}" oninput="g.adminNewUserName=this.value">
+      <form class="admin-create-form" data-act="createAdminUser">
+        <input class="project-search" style="flex:1;margin:0" type="text" placeholder="Имя нового пользователя..." value="${escAttr(g.adminNewUserName)}" data-bind="adminNewUserName">
         <button type="submit" class="admin-create-btn" ${g.adminBusy ? "disabled" : ""}>${g.adminBusy ? "..." : "Создать"}</button>
       </form>
       ${g.adminError ? `<div class="auth-error" style="margin:0 0 8px">${escText(g.adminError)}</div>` : ""}

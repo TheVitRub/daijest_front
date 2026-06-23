@@ -1,0 +1,60 @@
+// ============================================================
+//   STORE — mutable session / UI state shared across modules
+// ============================================================
+// Single object so reassignment of a field is visible to every importer
+// (unlike `export let`, whose bindings can't be reassigned from outside the
+// owning module). Replaces the old top-level `let` globals of app.js.
+//
+// Storage-dependent fields (authToken, currentDigestId, checkingSession,
+// autosaveEnabled) start with plain defaults here and are hydrated from
+// localStorage in main.js init() to avoid a store<->storage import cycle.
+export const g = {
+  authToken: "",
+  currentUser: null,
+  checkingSession: false,
+  currentDigestId: "",
+  remoteDigests: [],
+  remoteRevisions: [],
+  remoteSaveTimer: null,
+  lastRemoteSnapshot: "",
+  lastRemoteTitle: "",
+  currentProjectTitle: "",
+  saveStatus: "",
+  authMode: "code",
+  authError: "",
+  authBusy: false,
+  authDraft: { email: "", name: "", password: "", confirm: "", code: "" },
+  adminPanelOpen: false,
+  adminUsers: [],
+  adminNewUserName: "",
+  adminBusy: false,
+  adminError: "",
+  adminSearch: "",
+  adminVisibleLimit: 50,
+  adminDeletingUserId: "",
+  adminEditUser: null,
+  adminEditDraftName: "",
+  currentDigestType: "analytical",
+  newProjectType: "analytical",
+  projectsPanelOpen: false,
+  projectSearch: "",
+  projectMenuOpenId: "",
+  projectMenuPosition: null,
+  confirmDialog: null,
+  newProjectDialogOpen: false,
+  newProjectTitle: "",
+  historyProjectId: "",
+  historyRevisions: [],
+  historyLoading: false,
+  importTargetProjectId: "",
+  pendingImport: null,
+  companyImportTargetKey: "",
+  pendingCompanyImport: null,
+  renamingProjectId: "",
+  renameDraft: "",
+  revisionPreview: null,
+  autosaveEnabled: true,
+  projectDirty: false,
+  savingRemote: false,
+  booting: true,
+};

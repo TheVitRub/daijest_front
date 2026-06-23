@@ -880,16 +880,19 @@ input[type=file] { font-size: 12px; }
 .pt-text .pt-ic { font-size: 20px; flex-shrink: 0; }
 .pt-text h4 { margin: 0 0 3px 0; font-size: 14px; font-weight: 700; }
 .pt-text p { margin: 0; font-size: 12.5px; line-height: 1.4; color: #333; }
-.pt-photos { display: flex; flex-direction: column; gap: 8px; }
+.pt-photos { display: grid; gap: 8px; }
+.pt-photos.n1 { grid-template-columns: 1fr; }
+.pt-photos.n2 { grid-template-columns: 1fr 1fr; }
+.pt-photos.n3 { grid-template-columns: 1fr 1fr 1fr; }
+.pt-photos.n4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.pt-photos:not(.n1) .pt-img { width: 100%; }
 .news-with-photo .side-photos { margin: 0; }
+.news-with-photo .side-photos.n3,
+.news-with-photo .side-photos.n4 { grid-template-columns: 1fr 1fr; }
 .pt-photos .pt-img {
   border-radius: 8px;
   overflow: hidden;
   background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
 }
 .pt-photos .pt-img img {
   width: 100%;

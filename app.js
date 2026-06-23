@@ -1611,12 +1611,21 @@ function newsItemHTML(it) {
   const textBlock = `
     ${it.title ? `<h4>${escText(it.title)}</h4>` : ""}
     ${it.text  ? `<p>${escText(it.text).replace(/\n/g, '<br>')}</p>`   : ""}`;
+  const photoSlice = photos.slice(0, 4);
+  const photoCount = photoSlice.length;
+  const photoRatioVals = photoSlice.map(p => {
+    const r = typeof p === 'string' ? (it.photoRatio || '4/3') : (p.ratio || '4/3');
+    const [rw, rh] = r.split('/').map(Number);
+    return { r, val: rw / rh };
+  });
+  const gridCols = photoCount > 1
+    ? ` style="grid-template-columns:${photoRatioVals.map(x => x.val.toFixed(3)+'fr').join(' ')}"`
+    : '';
   const photoGrid = photos.length ? `
-    <div class="pt-photos">
-      ${photos.slice(0, 4).map(p => {
+    <div class="pt-photos n${photoCount}"${gridCols}>
+      ${photoSlice.map((p, i) => {
         const src = typeof p === 'string' ? p : p.src;
-        const r   = typeof p === 'string' ? (it.photoRatio || '4/3') : (p.ratio || '4/3');
-        return `<div class="pt-img" style="aspect-ratio:${r}"><img src="${escAttr(src)}" alt=""></div>`;
+        return `<div class="pt-img" style="aspect-ratio:${photoRatioVals[i].r}"><img src="${escAttr(src)}" alt=""></div>`;
       }).join("")}
     </div>` : "";
   if (photos.length && it.photoLayout === 'side') {

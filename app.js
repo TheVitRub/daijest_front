@@ -69,6 +69,7 @@ let adminError = "";
 let adminSearch = "";
 let adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
 let adminDeletingUserId = "";
+let adminEditOpenId = "";
 let currentDigestType = "analytical";
 let newProjectType = "analytical";
 let projectsPanelOpen = false;
@@ -420,6 +421,7 @@ function logoutAccount() {
   adminSearch = "";
   adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
   adminDeletingUserId = "";
+  adminEditOpenId = "";
   historyProjectId = "";
   historyRevisions = [];
   historyLoading = false;
@@ -2025,25 +2027,47 @@ function renderAdminListMeta() {
   const filteredUsers = filteredAdminUsers();
   return `${filteredUsers.length} из ${adminUsers.length}`;
 }
+function openAdminEdit(id, event) {
+  event.stopPropagation();
+  adminEditOpenId = adminEditOpenId === id ? "" : id;
+  render();
+}
 function renderAdminUserList() {
   const filteredUsers = filteredAdminUsers();
   const visibleUsers = filteredUsers.slice(0, adminVisibleLimit);
   const rows = visibleUsers.map(u => {
     const isSelf = u.id === currentUser?.id;
+    const editOpen = adminEditOpenId === u.id;
     const deleting = adminDeletingUserId === u.id;
+    const dropdown = editOpen ? `
+      <div class="admin-user-dropdown" onclick="event.stopPropagation()">
+        <button type="button" class="admin-dd-item" onclick="toggleAdminRole('${escAttr(u.id)}', ${!u.isAdmin})">
+          ${u.isAdmin ? "Снять права администратора" : "Сделать администратором"}
+        </button>
+        <button type="button" class="admin-dd-item admin-dd-danger" onclick="confirmDeleteAdminUser('${escAttr(u.id)}')" ${deleting ? "disabled" : ""}>
+          ${deleting ? "Удаление..." : "Удалить пользователя"}
+        </button>
+      </div>` : "";
     return `
     <div class="admin-user-row">
-      <div class="admin-user-main">
+      <div class="admin-user-info">
         <span class="admin-user-name">${escText(u.name || "—")}</span>
-        ${u.email ? `<span class="admin-user-email">${escText(u.email)}</span>` : ""}
         ${u.accessCode ? `<code class="admin-user-code">${escText(u.accessCode)}</code>` : ""}
+        ${u.email ? `<span class="admin-user-email">${escText(u.email)}</span>` : ""}
         ${u.isAdmin ? `<span class="admin-user-admin-badge">Админ</span>` : ""}
+        ${isSelf ? `<span class="admin-user-self">Это вы</span>` : ""}
       </div>
-      <div class="admin-user-tools">
-        ${isSelf
-          ? `<span class="admin-user-self">Это вы</span>`
-          : `<button type="button" class="admin-user-role-btn" onclick="toggleAdminRole('${escAttr(u.id)}', ${!u.isAdmin})">${u.isAdmin ? "Снять права" : "Сделать админом"}</button>
-             <button type="button" class="admin-user-delete" onclick="confirmDeleteAdminUser('${escAttr(u.id)}')" ${deleting ? "disabled" : ""}>${deleting ? "..." : "Удалить"}</button>`}
+      <div class="admin-user-actions">
+        ${!isSelf ? `
+          <div class="admin-edit-wrap">
+            <button type="button" class="admin-user-edit-btn ${editOpen ? 'active' : ''}" onclick="openAdminEdit('${escAttr(u.id)}', event)" title="Редактировать">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            ${dropdown}
+          </div>` : ""}
       </div>
     </div>`;
   }).join("");
@@ -2584,5 +2608,8 @@ function init() {
   rememberSnapshot(captureState());
   saveLocalDraft();
   bootstrapRemoteSession();
+  document.addEventListener("click", () => {
+    if (adminEditOpenId) { adminEditOpenId = ""; render(); }
+  });
 }
 init();

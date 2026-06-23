@@ -1273,82 +1273,39 @@ label { color: #888; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 8px;
+  padding: 6px 10px;
   background: rgba(255,255,255,0.04);
   border-radius: 6px;
   gap: 8px;
   min-width: 0;
 }
-.admin-user-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+.admin-user-info {
+  display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
   flex: 1;
+  flex-wrap: wrap;
 }
 .admin-user-name {
   font-size: 13px;
   color: #e0e0e0;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .admin-user-code {
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   background: rgba(240,200,50,0.12);
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 4px;
   color: #f5c842;
   font-family: monospace;
 }
 .admin-user-email {
   font-size: 12px;
-  color: #888;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #666;
   white-space: nowrap;
 }
-.admin-user-tools {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-.admin-user-self {
-  color: #777;
-  font-size: 11px;
-}
-.admin-user-delete {
-  border: 1px solid rgba(240,80,70,0.25);
-  background: rgba(240,80,70,0.08);
-  color: #ffaaa4;
-  border-radius: 5px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 11px;
-  padding: 4px 7px;
-}
-.admin-user-delete:hover {
-  background: rgba(240,80,70,0.16);
-  color: #ffd5d1;
-}
-.admin-user-delete:disabled {
-  opacity: 0.55;
-  cursor: wait;
-}
-.admin-user-role-btn {
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06);
-  color: #b0b3b8;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 11px;
-  padding: 4px 7px;
-}
-.admin-user-role-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
 .admin-user-admin-badge {
   font-size: 10px;
   font-weight: 600;
@@ -1356,8 +1313,63 @@ label { color: #888; }
   border: 1px solid rgba(244,169,61,0.4);
   border-radius: 4px;
   padding: 1px 5px;
-  margin-left: 4px;
 }
+.admin-user-self {
+  font-size: 11px;
+  color: #555;
+}
+.admin-user-actions {
+  flex-shrink: 0;
+}
+.admin-edit-wrap {
+  position: relative;
+}
+.admin-user-edit-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.admin-user-edit-btn:hover,
+.admin-user-edit-btn.active {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.admin-user-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: #2a2a2e;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 200;
+  min-width: 210px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.admin-dd-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: 0;
+  background: none;
+  color: #d0d0d0;
+  font-family: inherit;
+  font-size: 13px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.admin-dd-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.admin-dd-danger { color: #ff8080; }
+.admin-dd-danger:hover { background: rgba(240,80,70,0.12); color: #ffaaaa; }
 .admin-list-footer {
   display: flex;
   align-items: center;

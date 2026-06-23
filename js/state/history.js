@@ -3,7 +3,8 @@
 // ============================================================
 import { HISTORY_LIMIT } from "../config.js";
 import { captureState, loadState } from "./state.js";
-import { render, scheduleRemoteAutosave } from "../render.js";
+import { render } from "../render.js";
+import { scheduleRemoteAutosave } from "../features/projects.js";
 import { saveLocalDraft } from "../storage.js";
 
 let localHistory = [];

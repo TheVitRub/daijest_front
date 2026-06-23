@@ -49,6 +49,7 @@ const INITIAL_STATE_SNAPSHOT = JSON.stringify(state);
 
 let authToken = safeStorageGet(AUTH_TOKEN_KEY) || "";
 let currentUser = null;
+let checkingSession = !!authToken;
 let currentDigestId = safeStorageGet(CURRENT_DIGEST_KEY) || "";
 let remoteDigests = [];
 let remoteRevisions = [];
@@ -439,6 +440,7 @@ function logoutAccount() {
 }
 async function bootstrapRemoteSession() {
   if (!authToken) {
+    checkingSession = false;
     renderAuthScreen();
     renderAccountBar();
     renderShellState();
@@ -447,8 +449,10 @@ async function bootstrapRemoteSession() {
   try {
     const data = await apiRequest("/me");
     currentUser = data.user;
+    checkingSession = false;
     await loadRemoteDigests(true);
   } catch (_) {
+    checkingSession = false;
     logoutAccount();
   }
 }
@@ -1691,7 +1695,7 @@ function renderAuthScreen() {
   const el = document.getElementById("authScreen");
   if (!el) return;
   renderShellState();
-  if (currentUser) {
+  if (currentUser || checkingSession) {
     el.innerHTML = "";
     return;
   }

@@ -177,32 +177,39 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
   const tiles = getTiles(item);
   const tilesHTML = tiles.map((tile, ti) => `
     <div class="metric-tile-row">
-      <div class="row2">
-        <input type="text" class="metric-value-input" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"value","$value"]'>
-        <input type="text" placeholder="Подпись" value="${escAttr(tile.label||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"label","$value"]'>
-      </div>
-      <div class="row2" style="margin-top:4px;">
-        <input type="text" placeholder="Динамика (опц.)" value="${escAttr(tile.delta||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"delta","$value"]'>
-        <div style="display:flex;gap:6px;align-items:center;min-width:0;overflow:hidden;">
-          <select style="flex:1;min-width:0;width:0" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"direction","$value"]'>
+      <div class="metric-tile-fields">
+        <div class="row2">
+          <input type="text" class="metric-value-input" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"value","$value"]'>
+          <input type="text" placeholder="Подпись" value="${escAttr(tile.label||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"label","$value"]'>
+        </div>
+        <div class="row2" style="margin-top:4px;">
+          <input type="text" placeholder="Динамика (опц.)" value="${escAttr(tile.delta||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"delta","$value"]'>
+          <select style="width:100%;min-width:0" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"direction","$value"]'>
             <option value="up"   ${tile.direction==='up'   ?'selected':''}>🟢 рост</option>
             <option value="down" ${tile.direction==='down' ?'selected':''}>🔴 падение</option>
             <option value="none" ${tile.direction==='none' ?'selected':''}>⚪ нейтрально</option>
           </select>
-          ${tiles.length > 1 ? `<button class="item-del-btn" data-act="removeMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti}]'>✕</button>` : ''}
         </div>
       </div>
+      ${tiles.length > 1 ? `<button class="metric-tile-del" data-act="removeMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti}]' title="Удалить">✕</button>` : ''}
     </div>`).join('<div class="metric-tile-sep"></div>');
   return `
-    <div class="item-block item-block-metric" ${itemDragAttrs(compKey, blockId, idx)}>
+    <div class="item-block item-block-metric ${item.collapsed ? 'metric-collapsed' : ''}" ${itemDragAttrs(compKey, blockId, idx)}>
       <div class="item-del-row">
         ${ITEM_DRAG_HANDLE}
         <span class="metric-label-tag">Метрика</span>
+        <button class="item-del-btn metric-collapse-btn" data-act="toggleMetricCollapse" data-args='["${compKey}","${blockId}",${idx}]' title="${item.collapsed ? 'Развернуть' : 'Свернуть'}">${collapseIcon(item.collapsed)}</button>
         <button class="item-del-btn" data-act="removeItem" data-args='["${compKey}","${blockId}",${idx}]'>✕</button>
       </div>
-      ${tilesHTML}
-      <button class="add-tile-btn" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>+ Добавить ещё</button>
+      ${item.collapsed ? '' : `${tilesHTML}
+      <button class="add-tile-btn" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>+ Добавить ещё</button>`}
     </div>`;
+}
+export function toggleMetricCollapse(compKey, blockId, idx) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[idx]) return;
+  b.items[idx].collapsed = !b.items[idx].collapsed;
+  renderEditor();
 }
 export function blockEditorHTML(compKey, block) {
   const meta  = getCompMeta(compKey);

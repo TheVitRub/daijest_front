@@ -178,7 +178,7 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
   const tilesHTML = tiles.map((tile, ti) => `
     <div class="metric-tile-row">
       <div class="row2">
-        <input type="text" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"value","$value"]'>
+        <input type="text" class="metric-value-input" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"value","$value"]'>
         <input type="text" placeholder="Подпись" value="${escAttr(tile.label||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"label","$value"]'>
       </div>
       <div class="row2" style="margin-top:4px;">

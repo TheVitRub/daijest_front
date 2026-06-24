@@ -714,10 +714,20 @@ input[type=file] { font-size: 12px; }
   text-align: center;
 }
 .kpi-tile .value {
+  font-family: "OfficinaBold", "Helvetica Neue", Arial, sans-serif;
   font-size: 56px;
   font-weight: 800;
   color: #1a1a1a;
   line-height: 1;
+}
+/* A lone trailing tile in the 2-col grid (e.g. the 5th) spans full width
+   instead of leaving a gap. */
+.kpi-grid:not(.cols-1):not(.cols-3) .kpi-tile:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+/* Metric "value" editor input uses the display font, like the rendered value. */
+.metric-value-input {
+  font-family: "OfficinaBold", "Helvetica Neue", Arial, sans-serif;
 }
 .kpi-tile .label {
   font-size: 16px;

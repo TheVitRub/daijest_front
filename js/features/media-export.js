@@ -85,6 +85,34 @@ export async function inlineSvgImagesForExport(root) {
   }));
 }
 
+// html2canvas does not support CSS `aspect-ratio` (cell sizing) or `object-fit`
+// (image cropping), so photo cells render mis-sized and stretched. The clone is
+// laid out by the real browser first, so we read each cell's true geometry and
+// bake it into explicit px sizes + a background-image (cover), which html2canvas
+// DOES render correctly. Measure everything before mutating to avoid reflow.
+function bakePhotoCellsForExport(root) {
+  root.querySelectorAll('.pt-photos').forEach(grid => {
+    const cells = Array.from(grid.querySelectorAll('.pt-img'));
+    if (!cells.length) return;
+    const boxes = cells.map(c => c.getBoundingClientRect());
+    grid.style.gridTemplateColumns = boxes.map(b => b.width + 'px').join(' ');
+    grid.style.alignItems = 'start';
+    cells.forEach((cell, i) => {
+      const img = cell.querySelector('img');
+      cell.style.width = boxes[i].width + 'px';
+      cell.style.height = boxes[i].height + 'px';
+      cell.style.aspectRatio = 'auto';
+      if (img && img.src) {
+        cell.style.backgroundImage = `url("${img.src}")`;
+        cell.style.backgroundSize = 'cover';
+        cell.style.backgroundPosition = 'center';
+        cell.style.backgroundRepeat = 'no-repeat';
+        img.remove();
+      }
+    });
+  });
+}
+
 export async function pageToDataUrl(page, scale) {
   const w = page.offsetWidth;
   const h = page.scrollHeight;
@@ -98,6 +126,8 @@ export async function pageToDataUrl(page, scale) {
   await Promise.all(Array.from(clone.querySelectorAll('img')).map(img =>
     new Promise(res => { if (img.complete) res(); else { img.onload = res; img.onerror = res; } })
   ));
+
+  bakePhotoCellsForExport(clone);
 
   try {
     const canvas = await html2canvas(clone, {

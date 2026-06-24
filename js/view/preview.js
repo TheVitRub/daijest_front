@@ -131,4 +131,20 @@ export function renderPreview() {
     for (const block of comp.blocks) html += pageBlock(comp.key, block);
   }
   pv.innerHTML = html;
+  syncSidePhotoHeights(pv);
+}
+
+// Match each side-layout news text card to its photo grid height via a measure
+// pass. (Doing this with CSS `align-items: stretch` on a grid whose children use
+// `aspect-ratio` can trigger an infinite-layout loop / renderer crash in
+// Chromium, so we keep align-items:start and set the height explicitly.)
+export function syncSidePhotoHeights(root) {
+  root.querySelectorAll('.news-with-photo').forEach(wrap => {
+    const photos = wrap.querySelector('.side-photos');
+    const text = wrap.querySelector('.news-side-text');
+    if (!photos || !text) return;
+    text.style.height = '';
+    const h = photos.getBoundingClientRect().height;
+    if (h > 0) text.style.height = h + 'px';
+  });
 }

@@ -872,7 +872,8 @@ input[type=file] { font-size: 12px; }
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
   gap: 8px;                /* equal to the photo grid gap */
-  align-items: stretch;    /* text card matches the photo grid height */
+  align-items: start;      /* height matched via JS (syncSidePhotoHeights) to
+                              avoid the stretch+aspect-ratio layout-loop crash */
 }
 .news-with-photo .news-side-text {
   background: #fff;

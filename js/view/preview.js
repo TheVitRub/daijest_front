@@ -76,6 +76,15 @@ export function newsItemHTML(it) {
         ${photoGrid.replace('class="pt-photos', 'class="pt-photos side-photos')}
       </div>`;
   }
+  if (photos.length && it.photoLayout === 'top') {
+    return `
+      <div class="news-block">
+        ${photoGrid}
+        <div class="ach-item">
+          <div class="ach-content">${textBlock}</div>
+        </div>
+      </div>`;
+  }
   return `
     <div class="news-block">
       <div class="ach-item">

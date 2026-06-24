@@ -72,7 +72,7 @@ export function newsItemHTML(it) {
   if (photos.length && it.photoLayout === 'side') {
     return `
       <div class="news-with-photo">
-        <div class="news-side-text">${textBlock}</div>
+        <div class="news-side-text"><div class="news-side-inner">${textBlock}</div></div>
         ${photoGrid.replace('class="pt-photos', 'class="pt-photos side-photos')}
       </div>`;
   }

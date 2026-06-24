@@ -767,8 +767,11 @@ input[type=file] { font-size: 12px; }
 .ach-items { display: flex; flex-direction: column; gap: 0; }
 .ach-items > * + * { border-top: 2px solid #ffffff; padding-top: 16px; margin-top: 0; }
 .news-block { display: flex; flex-direction: column; gap: 8px; padding: 16px 0; }
-.news-block:first-child { padding-top: 0; }
-.news-block:last-child { padding-bottom: 0; }
+/* side layout shares the same vertical rhythm so the divider between news
+   items is consistent regardless of layout */
+.news-with-photo { padding: 16px 0; }
+.ach-items > :first-child { padding-top: 0; }
+.ach-items > :last-child { padding-bottom: 0; }
 .kpi-grid { padding-bottom: 16px; }
 .kpi-grid:first-child { padding-top: 0; }
 .kpi-grid:last-child { padding-bottom: 0; }
@@ -868,13 +871,30 @@ input[type=file] { font-size: 12px; }
 .news-with-photo {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
-  gap: 14px;
-  align-items: start;
+  gap: 8px;                /* equal to the photo grid gap */
+  align-items: stretch;    /* text card matches the photo grid height */
 }
 .news-with-photo .news-side-text {
   background: #fff;
   border-radius: 10px;
-  padding: 14px;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+/* The text is absolutely positioned so it doesn't grow the row — the photo
+   column drives the height, and overflowing text is clipped with a fade. */
+.news-with-photo .news-side-inner {
+  position: absolute;
+  inset: 14px;
+  overflow: hidden;
+}
+.news-with-photo .news-side-inner::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1.8em;
+  background: linear-gradient(to bottom, rgba(255,255,255,0), #ffffff 78%);
+  pointer-events: none;
 }
 .news-with-photo .news-side-text h4 { margin: 0 0 12px 0; font-size: 20px; font-family: "IBMPlex", sans-serif; font-weight: 500; color: #000000; text-align: left; }
 .news-with-photo .news-side-text p  { margin: 0; font-size: 18px; font-family: "IBMPlex", sans-serif; font-weight: 400; line-height: 1.45; color: #4D4D4D; text-align: left; }

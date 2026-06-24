@@ -14,6 +14,10 @@ import { scheduleRemoteAutosave } from "./features/projects.js";
 export function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 export const debouncedRenderAndSave = debounce(() => { renderPreview(); afterStateChanged("edit"); }, 250);
 
+// Writing the full state (incl. base64 photos) to localStorage on every edit is
+// slow and can hit the quota; throttle it. Remote autosave still persists.
+const throttledSaveLocalDraft = debounce(saveLocalDraft, 1500);
+
 export function afterStateChanged(action) {
   if (g.booting) return;
   if (g.revisionPreview) {
@@ -23,7 +27,7 @@ export function afterStateChanged(action) {
   }
   const snapshot = captureState();
   rememberSnapshot(snapshot);
-  saveLocalDraft();
+  throttledSaveLocalDraft();
   g.projectDirty = true;
   scheduleRemoteAutosave(action || "autosave");
   renderAccountBar();

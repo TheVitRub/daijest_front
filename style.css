@@ -1863,7 +1863,7 @@ label { color: #888; }
 .projects-drawer {
   width: min(520px, 100vw);
   height: 100vh;
-  overflow: auto;
+  overflow: hidden;
   background: #202020;
   border-left: 1px solid #3a3a3a;
   box-shadow: -18px 0 50px rgba(0,0,0,0.45);
@@ -1871,6 +1871,14 @@ label { color: #888; }
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+/* Header, new-project, search and the admin section keep their size; only the
+   project list scrolls — so a long list can't overlap the admin button. */
+.projects-drawer > .drawer-header,
+.projects-drawer > .drawer-new-project,
+.projects-drawer > .project-search,
+.projects-drawer > .drawer-section:not(.projects-list-section) {
+  flex-shrink: 0;
 }
 .drawer-header {
   display: flex;
@@ -2093,6 +2101,7 @@ label { color: #888; }
 .projects-list-section {
   flex: 1 1 auto;
   min-height: 0;
+  overflow-y: auto;
 }
 .projects-list-section .project-list {
   max-height: none;

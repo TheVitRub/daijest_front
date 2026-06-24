@@ -16,6 +16,7 @@ export function pageLetter() {
   const bgStyle = l.cover ? ` style="background-image:url('${l.cover}');background-size:cover;background-position:center;"` : '';
   return `
     <div class="page letter"${bgStyle}>
+      <div class="quote-mark">&bdquo;</div>
       <div class="letter-body-card">
         <h2>${escText(l.title)}</h2>
         ${paras}

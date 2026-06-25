@@ -30,13 +30,39 @@ export function readFileAsDataURL(file) {
     r.readAsDataURL(file);
   });
 }
+// Downscale + re-encode an uploaded photo so the state doesn't carry multi-MB
+// originals (which bloat memory, the undo history and exports). 2400px on the
+// long side is plenty for the preview AND a 3x export of any news cell.
+export function downscalePhoto(file, maxDim = 2400, quality = 0.82) {
+  return new Promise(async (resolve) => {
+    const dataUrl = await readFileAsDataURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        const out = canvas.toDataURL("image/jpeg", quality);
+        // keep whichever is smaller (tiny images may already be smaller as-is)
+        resolve(out.length < dataUrl.length ? out : dataUrl);
+      } catch (_) {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
 export async function loadItemPhotos(compKey, blockId, idx, files) {
   if (!files || !files.length) return;
   const b = getBlock(compKey, blockId);
   if (!b || !b.items[idx]) return;
   if (!b.items[idx].photos) b.items[idx].photos = [];
   const ratio = _ratioCtx.ratio || b.items[idx].photoRatio || '4/3';
-  for (const f of files) b.items[idx].photos.push({ src: await readFileAsDataURL(f), ratio });
+  for (const f of files) b.items[idx].photos.push({ src: await downscalePhoto(f), ratio });
   render();
 }
 export function removeItemPhoto(compKey, blockId, itemIdx, photoIdx) {

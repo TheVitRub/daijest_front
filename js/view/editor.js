@@ -7,6 +7,7 @@ import { collapseIcon, ITEM_DRAG_HANDLE, itemDragAttrs, dragHandle } from "../do
 import { getCompMeta, getBlockLabel, BLOCK_TYPES } from "../config.js";
 import { state, getBlock, getTiles } from "../state/state.js";
 import { render } from "../render.js";
+import { saveRemoteNow } from "../features/projects.js";
 
 export function autoGrow(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
 export function initTextareas() {
@@ -64,6 +65,9 @@ export async function loadItemPhotos(compKey, blockId, idx, files) {
   const ratio = _ratioCtx.ratio || b.items[idx].photoRatio || '4/3';
   for (const f of files) b.items[idx].photos.push({ src: await downscalePhoto(f), ratio });
   render();
+  // Photos are large and easy to lose on a quick refresh — save immediately
+  // instead of waiting for the 5-second autosave timer.
+  saveRemoteNow();
 }
 export function removeItemPhoto(compKey, blockId, itemIdx, photoIdx) {
   const b = getBlock(compKey, blockId);

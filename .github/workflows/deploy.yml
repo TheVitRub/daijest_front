@@ -26,7 +26,8 @@ jobs:
           node-version: 22
 
       - name: Check JavaScript syntax
-        run: node --check app.js
+        run: |
+          for f in $(find js -name '*.js'); do node --check "$f"; done
 
       - name: Check deploy compose
         run: docker compose -f deploy/docker-compose.yml config >/dev/null

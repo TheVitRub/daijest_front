@@ -132,6 +132,17 @@ export function renderPreview() {
   }
   pv.innerHTML = html;
   syncSidePhotoHeights(pv);
+  // Re-sync once images finish loading — getBoundingClientRect returns 0
+  // for aspect-ratio containers whose images haven't decoded yet.
+  const imgs = Array.from(pv.querySelectorAll('.news-with-photo img'));
+  if (imgs.length) {
+    const pending = imgs.filter(img => !img.complete);
+    if (pending.length) {
+      let done = 0;
+      const onLoad = () => { if (++done === pending.length) syncSidePhotoHeights(pv); };
+      pending.forEach(img => img.addEventListener('load', onLoad, { once: true }));
+    }
+  }
 }
 
 // Match each side-layout news text card to its photo grid height via a measure

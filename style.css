@@ -252,9 +252,9 @@ input[type=file] { font-size: 12px; }
   gap: 6px;
 }
 .metric-label-tag {
-  font-size: 11px;
+  font-size: 14px;
   color: #65676b;
-  font-weight: 600;
+  font-weight: 400;
   flex: 1;
 }
 .item-del-btn {
@@ -341,19 +341,44 @@ input[type=file] { font-size: 12px; }
   text-align: right;
   margin-top: -4px;
 }
-.layout-toggle {
+.news-metric-wrap {
+  margin-top: 6px;
+  border: 1px solid #e4e6eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f0f2f5;
+}
+.news-metric-head {
+  margin-bottom: 0;
+}
+.news-metric-body {
+  margin-top: 8px;
+}
+.media-layout-row {
   display: flex;
   gap: 6px;
+  margin-top: 6px;
+}
+.media-layout-row .media-add-btn {
+  flex: 1;
+  width: auto;
+  margin-top: 0;
+}
+.layout-toggle {
+  display: flex;
+  gap: 4px;
 }
 .layout-btn {
-  flex: 1;
-  padding: 10px 12px;
+  padding: 8px 10px;
   font-size: 14px;
   border: 1px solid #e4e6eb;
   border-radius: 8px;
   background: #f8f9fb;
   cursor: pointer;
   color: #65676b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .layout-btn:hover { background: #e4e6eb; }
 
@@ -1082,6 +1107,8 @@ h1 { color: #fff; }
 .item-del-btn { color: #666; }
 .item-del-btn:hover { color: #f05046; }
 .metric-label-tag { color: #888; }
+.news-metric-wrap { background: #2e2e2e; border-color: #444; }
+.news-metric-wrap .metric-label-tag { color: #aaa; }
 .metric-tile-sep { border-top-color: #383838; }
 .metric-tile-del { border-color: #3a3a3a; color: #777; }
 .metric-tile-del:hover { color: #f05046; border-color: #f05046; }

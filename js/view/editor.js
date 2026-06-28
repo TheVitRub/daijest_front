@@ -189,6 +189,7 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
       <div class="item-block" ${itemDragAttrs(compKey, blockId, idx)}>
         <div class="item-del-row">
           ${ITEM_DRAG_HANDLE}
+          <button class="item-del-btn" data-act="scrollToPreviewItem" data-args='["${blockId}",${idx}]' title="Перейти в превью"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
           <button class="item-del-btn" data-act="removeItem" data-args='["${compKey}","${blockId}",${idx}]'>✕</button>
         </div>
         <input type="text" placeholder="Заголовок новости" maxlength="600" value="${escAttr(item.title || '')}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"title","$value"]' data-counter="cc_t_${blockId}_${idx}" data-max="600">
@@ -196,13 +197,48 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
         <textarea placeholder="Текст новости" maxlength="600" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"text","$value"]' data-counter="cc_p_${blockId}_${idx}" data-max="600">${escText(item.text || '')}</textarea>
         <div class="char-counter" id="cc_p_${blockId}_${idx}">${(item.text||'').length}/600</div>
         ${photos ? `<div class="media-row">${photos}</div>` : ""}
-        <button class="media-add-btn" data-act="showRatioModal" data-args='["${compKey}","${blockId}",${idx}]'>Добавить медиа +</button>
-        <input type="file" id="mi_${blockId}_${idx}" accept="image/*" multiple style="display:none" data-act="loadItemPhotos" data-args='["${compKey}","${blockId}",${idx},"$files"]'>
-        <div class="layout-toggle">
-          <button class="layout-btn ${item.photoLayout==='top'?'active':''}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"photoLayout","top"]'><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> Сверху</button>
-          <button class="layout-btn ${(item.photoLayout||'bottom')==='bottom'?'active':''}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"photoLayout","bottom"]'><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg> Снизу</button>
-          <button class="layout-btn ${item.photoLayout==='side'?'active':''}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"photoLayout","side"]'><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> Сбоку</button>
+        <div class="media-layout-row">
+          <button class="media-add-btn" data-act="showRatioModal" data-args='["${compKey}","${blockId}",${idx}]'>Медиа +</button>
+          <div class="layout-toggle">
+            <button class="layout-btn" title="Сверху" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"photoLayout","top"]'><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
+            <button class="layout-btn" title="Снизу" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"photoLayout","bottom"]'><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></button>
+            <button class="layout-btn" title="Сбоку" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"photoLayout","side"]'><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+          </div>
         </div>
+        <input type="file" id="mi_${blockId}_${idx}" accept="image/*" multiple style="display:none" data-act="loadItemPhotos" data-args='["${compKey}","${blockId}",${idx},"$files"]'>
+        ${(item.tiles && item.tiles.length)
+          ? `<div class="news-metric-wrap">
+              <div class="item-del-row news-metric-head">
+                <span class="metric-label-tag">Метрика</span>
+                <button class="item-del-btn metric-collapse-btn" data-act="toggleNewsMetricCollapse" data-args='["${compKey}","${blockId}",${idx}]' title="${item.metricCollapsed ? 'Развернуть' : 'Свернуть'}">${collapseIcon(item.metricCollapsed)}</button>
+                <button class="item-del-btn" data-act="clearNewsMetric" data-args='["${compKey}","${blockId}",${idx}]' title="Удалить метрику">✕</button>
+              </div>
+              ${item.metricCollapsed ? '' : `
+                <div class="news-metric-body">
+                ${item.tiles.map((tile, ti) => `
+                  <div class="metric-tile-row">
+                    <div class="metric-tile-fields">
+                      <div class="row2">
+                        <input type="text" class="metric-value-input" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"value","$value"]'>
+                        <input type="text" placeholder="Подпись" value="${escAttr(tile.label||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"label","$value"]'>
+                      </div>
+                      <div class="row2" style="margin-top:4px;">
+                        <input type="text" placeholder="Динамика (опц.)" value="${escAttr(tile.delta||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"delta","$value"]'>
+                        <select style="width:100%;min-width:0" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"direction","$value"]'>
+                          <option value="up"   ${tile.direction==='up'   ?'selected':''}>🟢 рост</option>
+                          <option value="down" ${tile.direction==='down' ?'selected':''}>🔴 падение</option>
+                          <option value="none" ${tile.direction==='none' ?'selected':''}>⚪ нейтрально</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button class="metric-tile-del" data-act="removeMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti}]' title="Удалить">✕</button>
+                  </div>`).join('<div class="metric-tile-sep"></div>')}
+                <button class="add-tile-btn" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>+ Добавить тайл</button>
+                </div>
+              `}
+            </div>`
+          : `<button class="add-item-btn" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>Метрика +</button>`
+        }
       </div>`;
   }
   const tiles = getTiles(item);
@@ -229,12 +265,29 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
       <div class="item-del-row">
         ${ITEM_DRAG_HANDLE}
         <span class="metric-label-tag">Метрика</span>
+        <button class="item-del-btn" data-act="scrollToPreviewItem" data-args='["${blockId}",${idx}]' title="Перейти в превью"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
         <button class="item-del-btn metric-collapse-btn" data-act="toggleMetricCollapse" data-args='["${compKey}","${blockId}",${idx}]' title="${item.collapsed ? 'Развернуть' : 'Свернуть'}">${collapseIcon(item.collapsed)}</button>
         <button class="item-del-btn" data-act="removeItem" data-args='["${compKey}","${blockId}",${idx}]'>✕</button>
       </div>
       ${item.collapsed ? '' : `${tilesHTML}
       <button class="add-tile-btn" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>+ Добавить ещё</button>`}
     </div>`;
+}
+export function toggleNewsMetricCollapse(compKey, blockId, idx) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[idx]) return;
+  b.items[idx].metricCollapsed = !b.items[idx].metricCollapsed;
+  renderEditor();
+}
+export function scrollToPreviewItem(blockId, idx) {
+  const el = document.querySelector(`[data-item-ref="${blockId}-${idx}"]`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+export function clearNewsMetric(compKey, blockId, idx) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[idx]) return;
+  b.items[idx].tiles = [];
+  render();
 }
 export function toggleMetricCollapse(compKey, blockId, idx) {
   const b = getBlock(compKey, blockId);

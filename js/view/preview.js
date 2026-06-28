@@ -33,11 +33,12 @@ export function pageCompanyDivider(compKey) {
     </div>`;
 }
 
-export function metricGridHTML(tiles) {
+export function metricGridHTML(tiles, refId) {
   if (!tiles.length) return "";
   const cols = tiles.length === 1 ? 'cols-1' : tiles.length === 3 ? 'cols-3' : '';
+  const ref = refId ? ` data-item-ref="${refId}"` : '';
   return `
-    <div class="kpi-grid ${cols}">
+    <div class="kpi-grid ${cols}"${ref}>
       ${tiles.map(t => `
         <div class="kpi-tile">
           <div class="value">${escText(t.value || "")}</div>
@@ -47,7 +48,7 @@ export function metricGridHTML(tiles) {
     </div>`;
 }
 
-export function newsItemHTML(it) {
+export function newsItemHTML(it, refId) {
   const photos = it.photos || [];
   const textBlock = `
     ${it.title ? `<h4>${escText(it.title)}</h4>` : ""}
@@ -69,27 +70,32 @@ export function newsItemHTML(it) {
         return `<div class="pt-img" style="aspect-ratio:${photoRatioVals[i].r}"><img src="${escAttr(src)}" alt=""></div>`;
       }).join("")}
     </div>` : "";
+  const metricHTML = (it.tiles && it.tiles.length) ? metricGridHTML(it.tiles) : '';
+  const ref = refId ? ` data-item-ref="${refId}"` : '';
   if (photos.length && it.photoLayout === 'side') {
     return `
-      <div class="news-with-photo">
-        <div class="news-side-text"><div class="news-side-inner">${textBlock}</div></div>
-        ${photoGrid.replace('class="pt-photos', 'class="pt-photos side-photos')}
+      <div${metricHTML ? ' class="news-item-wrap"' : ''}${ref}>
+        <div class="news-with-photo">
+          <div class="news-side-text"><div class="news-side-inner">${textBlock}</div></div>
+          ${photoGrid.replace('class="pt-photos', 'class="pt-photos side-photos')}
+        </div>${metricHTML}
       </div>`;
   }
   if (photos.length && it.photoLayout === 'top') {
     return `
-      <div class="news-block">
+      <div class="news-block"${ref}>
         ${photoGrid}
         <div class="ach-item">
           <div class="ach-content">${textBlock}</div>
         </div>
+        ${metricHTML}
       </div>`;
   }
   return `
-    <div class="news-block">
+    <div class="news-block"${ref}>
       <div class="ach-item">
         <div class="ach-content">${textBlock}</div>
-      </div>${photoGrid}
+      </div>${photoGrid}${metricHTML}
     </div>`;
 }
 
@@ -97,11 +103,12 @@ export function pageBlock(compKey, block) {
   const meta      = getCompMeta(compKey);
   const label     = getBlockLabel(block.type);
   const shortName = meta.name.split("(")[0].trim();
-  const itemsHTML = block.items.map(it => {
+  const itemsHTML = block.items.map((it, idx) => {
+    const refId = `${block.id}-${idx}`;
     if (it.kind === 'metric') {
-      return metricGridHTML(getTiles(it));
+      return metricGridHTML(getTiles(it), refId);
     }
-    return newsItemHTML(it);
+    return newsItemHTML(it, refId);
   }).join('');
 
   const footer = block.comment ? `<div class="footer-note">ⓘ ${escText(block.comment)}</div>` : "";

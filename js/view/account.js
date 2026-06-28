@@ -150,7 +150,7 @@ export function renderConfirmDialog() {
         `).join("")
     : `<button type="button" class="${g.confirmDialog.danger ? "danger-action" : "primary-action"}" data-act="acceptConfirmDialog">${escText(g.confirmDialog.confirmText || "Подтвердить")}</button>`;
   return `
-    <div class="confirm-backdrop">
+    <div class="confirm-backdrop confirm-backdrop--top">
       <div class="confirm-dialog">
         <h3>${escText(g.confirmDialog.title || "Подтвердите действие")}</h3>
         <p>${escText(g.confirmDialog.message || "")}</p>
@@ -311,6 +311,6 @@ export function renderAccountBar() {
     </section>
     ${renderProjectsDrawer()}
     ${renderNewProjectDialog()}
-    ${renderConfirmDialog()}
-    ${renderAdminEditModal()}`;
+    ${renderAdminEditModal()}
+    ${renderConfirmDialog()}`;
 }

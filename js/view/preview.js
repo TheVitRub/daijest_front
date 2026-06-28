@@ -131,18 +131,22 @@ export function renderPreview() {
     for (const block of comp.blocks) html += pageBlock(comp.key, block);
   }
   pv.innerHTML = html;
-  syncSidePhotoHeights(pv);
-  // Re-sync once images finish loading — getBoundingClientRect returns 0
-  // for aspect-ratio containers whose images haven't decoded yet.
-  const imgs = Array.from(pv.querySelectorAll('.news-with-photo img'));
-  if (imgs.length) {
+  // Use rAF so the browser has calculated layout for aspect-ratio containers
+  // before we measure their height. Cached images are complete synchronously
+  // but getBoundingClientRect still returns 0 before first paint.
+  requestAnimationFrame(() => {
+    syncSidePhotoHeights(pv);
+    const imgs = Array.from(pv.querySelectorAll('.news-with-photo img'));
+    if (!imgs.length) return;
     const pending = imgs.filter(img => !img.complete);
-    if (pending.length) {
-      let done = 0;
-      const onLoad = () => { if (++done === pending.length) syncSidePhotoHeights(pv); };
-      pending.forEach(img => img.addEventListener('load', onLoad, { once: true }));
-    }
-  }
+    if (!pending.length) return;
+    let done = 0;
+    const onDone = () => { if (++done === pending.length) syncSidePhotoHeights(pv); };
+    pending.forEach(img => {
+      img.addEventListener('load', onDone, { once: true });
+      img.addEventListener('error', onDone, { once: true });
+    });
+  });
 }
 
 // Match each side-layout news text card to its photo grid height via a measure

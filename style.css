@@ -726,7 +726,7 @@ input[type=file] { font-size: 12px; }
 .kpi-tile {
   background: #fff;
   border-radius: 14px;
-  padding: 22px 28px;
+  padding: 14px 18px;
   text-align: center;
 }
 .kpi-tile .value {
@@ -747,6 +747,7 @@ input[type=file] { font-size: 12px; }
 }
 .kpi-tile .label {
   font-size: 16px;
+  font-weight: 700;
   color: #2c2c2c;
   margin-top: 8px;
 }
@@ -765,7 +766,7 @@ input[type=file] { font-size: 12px; }
 }
 .ach-list.no-photo { grid-template-columns: 1fr; }
 .ach-items { display: flex; flex-direction: column; gap: 0; }
-.ach-items > * + * { border-top: 2px solid #ffffff; padding-top: 16px; margin-top: 0; }
+.ach-items > * + * { border-top: 2px solid rgba(255,255,255,0.35); padding-top: 16px; margin-top: 0; }
 .news-block { display: flex; flex-direction: column; gap: 8px; padding: 16px 0; }
 /* side layout shares the same vertical rhythm so the divider between news
    items is consistent regardless of layout */
@@ -1422,7 +1423,7 @@ label { color: #888; }
 .admin-dd-item {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: center;
   padding: 10px 14px;
   border: 0;
   background: rgba(255,255,255,0.04);
@@ -1487,21 +1488,22 @@ label { color: #888; }
   padding: 8px 14px;
   cursor: pointer;
   width: 100%;
+  text-align: center;
 }
 .admin-edit-save-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
 .admin-edit-modal-body { display: flex; flex-direction: column; gap: 8px; }
 .admin-edit-modal-actions { display: flex; flex-direction: column; gap: 6px; }
-.admin-edit-close-btn {
+.admin-edit-modal-close-x {
+  margin-left: auto;
   background: none;
   border: 0;
   color: #555;
-  font-family: inherit;
-  font-size: 12px;
+  font-size: 16px;
+  line-height: 1;
   cursor: pointer;
-  padding: 4px 0;
-  text-align: center;
+  padding: 0;
 }
-.admin-edit-close-btn:hover { color: #888; }
+.admin-edit-modal-close-x:hover { color: #aaa; }
 .admin-list-footer {
   display: flex;
   align-items: center;
@@ -2299,6 +2301,9 @@ label { color: #888; }
   justify-content: center;
   background: rgba(0,0,0,0.56);
   padding: 16px;
+}
+.confirm-backdrop--top {
+  z-index: 9400;
 }
 .confirm-dialog {
   width: min(390px, 100%);

@@ -148,6 +148,7 @@ export function renderAdminEditModal() {
           <span class="admin-edit-modal-title">${escText(u.name || "Пользователь")}</span>
           ${u.accessCode ? `<code class="admin-user-code">${escText(u.accessCode)}</code>` : ""}
           ${u.isAdmin ? `<span class="admin-user-admin-badge">Админ</span>` : ""}
+          <button type="button" class="admin-edit-modal-close-x" data-act="closeAdminEditModal">✕</button>
         </div>
         <div class="admin-edit-modal-body">
           <label class="admin-edit-label">Имя
@@ -164,7 +165,6 @@ export function renderAdminEditModal() {
             Удалить пользователя
           </button>` : ""}
         </div>
-        <button type="button" class="admin-edit-close-btn" data-act="closeAdminEditModal">Закрыть</button>
       </div>
     </div>`;
 }

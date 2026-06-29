@@ -11,8 +11,16 @@ import { saveRemoteNow } from "../features/projects.js";
 import { findPageIndexForBlock, renderPreview } from "./preview.js";
 
 export function autoGrow(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+const COLLAPSED_H = 56;
+function updateCollapsibleFade(el) {
+  el.closest('.collapsible-wrap')?.classList.toggle('has-text', el.scrollHeight > COLLAPSED_H);
+}
 export function initTextareas() {
   document.getElementById('editor').querySelectorAll('textarea').forEach(ta => {
+    if ('collapsible' in ta.dataset && ta !== document.activeElement) {
+      updateCollapsibleFade(ta);
+      return;
+    }
     autoGrow(ta);
     ta.addEventListener('input', () => autoGrow(ta), { once: false });
   });
@@ -195,7 +203,7 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
         </div>
         <input type="text" placeholder="Заголовок новости" maxlength="600" value="${escAttr(item.title || '')}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"title","$value"]' data-counter="cc_t_${blockId}_${idx}" data-max="600">
         <div class="char-counter" id="cc_t_${blockId}_${idx}">${(item.title||'').length}/600</div>
-        <textarea placeholder="Текст новости" maxlength="600" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"text","$value"]' data-counter="cc_p_${blockId}_${idx}" data-max="600" data-collapsible>${escText(item.text || '')}</textarea>
+        <div class="collapsible-wrap"><textarea placeholder="Текст новости" maxlength="600" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"text","$value"]' data-counter="cc_p_${blockId}_${idx}" data-max="600" data-collapsible>${escText(item.text || '')}</textarea></div>
         <div class="char-counter" id="cc_p_${blockId}_${idx}">${(item.text||'').length}/600</div>
         ${photos ? `<div class="media-row">${photos}</div>` : ""}
         <div class="media-layout-row">
@@ -260,9 +268,11 @@ function tileTabsHTML(compKey, blockId, idx, item) {
         <div class="row2" style="margin-top:6px;">
           <input type="text" placeholder="Динамика (опц.)" value="${escAttr(tile.delta||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${active},"delta","$value"]'>
           <select style="width:100%;min-width:0" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${active},"direction","$value"]'>
-            <option value="up"   ${tile.direction==='up'   ?'selected':''}>🟢 рост</option>
-            <option value="down" ${tile.direction==='down' ?'selected':''}>🔴 падение</option>
-            <option value="none" ${tile.direction==='none' ?'selected':''}>⚪ нейтрально</option>
+            <option value="up"        ${tile.direction==='up'        ?'selected':''}>🟢 рост</option>
+            <option value="up-bad"   ${tile.direction==='up-bad'   ?'selected':''}>🔴 рост</option>
+            <option value="down-good"${tile.direction==='down-good'?'selected':''}>🟢 падение</option>
+            <option value="down"     ${tile.direction==='down'     ?'selected':''}>🔴 падение</option>
+            <option value="none"     ${tile.direction==='none'     ?'selected':''}>⚪ нейтрально</option>
           </select>
         </div>
       </div>

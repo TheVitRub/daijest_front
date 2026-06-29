@@ -229,8 +229,6 @@ export function renderProjectsDrawer() {
         </header>
 
         <button type="button" class="drawer-new-project" data-act="openNewProjectDialog">+ Новый проект</button>
-        <input class="project-search" type="search" placeholder="Поиск проекта..." value="${escAttr(g.projectSearch)}" data-act="setProjectSearch" data-args='["$value"]'>
-
         <section class="drawer-section projects-list-section">
           <div class="projects-heading plain-heading">
             <span>Мои проекты</span>

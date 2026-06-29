@@ -71,6 +71,11 @@ export function attachDelegatedEvents(root = document) {
     if ("act" in el.dataset && !usesChange(el)) run(el.dataset.act, el, e);
     if ("bind" in el.dataset) setPath(g, el.dataset.bind, el.value);
     if ("counter" in el.dataset) updateCounter(el);
+    if (el.tagName === "TEXTAREA" && "collapsible" in el.dataset) {
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
+      el.closest(".collapsible-wrap")?.classList.toggle("has-text", el.scrollHeight > 56);
+    }
   });
 
   root.addEventListener("change", (e) => {
@@ -128,11 +133,14 @@ export function attachDelegatedEvents(root = document) {
       el.style.height = "auto";
       el.style.height = el.scrollHeight + "px";
     }
+    if (el.classList.contains("preview-nav-input")) el.select();
   });
   root.addEventListener("focusout", (e) => {
     const el = e.target;
     if (el.tagName === "TEXTAREA" && "collapsible" in el.dataset) {
       el.style.height = "";
+      el.closest(".collapsible-wrap")?.classList.toggle("has-text", el.scrollHeight > 56);
     }
+    if ("actblur" in el.dataset) run(el.dataset.actblur, el, e);
   });
 }

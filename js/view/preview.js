@@ -17,7 +17,6 @@ export function pageLetter() {
   const bgStyle = l.cover ? ` style="background-image:url('${l.cover}');background-size:cover;background-position:center;"` : '';
   return `
     <div class="page letter"${bgStyle}>
-      <div class="quote-mark">&bdquo;</div>
       <div class="letter-body-card">
         <h2>${escText(l.title)}</h2>
         ${paras}
@@ -175,9 +174,15 @@ function previewNavHTML(cur, total) {
   return `
     <div class="preview-nav">
       <button class="preview-nav-btn" data-act="previewPrev"${cur === 0 ? " disabled" : ""} title="Предыдущая страница">‹</button>
-      <span class="preview-nav-counter">${cur + 1} / ${total}</span>
+      <input class="preview-nav-input" type="text" value="${cur + 1}/${total}" style="width:calc(${String(cur + 1).length + String(total).length + 1}ch + 32px)" data-args='["$value",${total},"$this"]' data-keydown='{"Enter":"previewGotoPage"}' data-actblur="previewGotoPage">
       <button class="preview-nav-btn" data-act="previewNext"${cur === total - 1 ? " disabled" : ""} title="Следующая страница">›</button>
     </div>`;
+}
+
+export function previewGotoPage(valueStr, total, inputEl) {
+  const n = parseInt(valueStr, 10);
+  if (!isNaN(n)) gotoPreviewPage(Math.max(1, Math.min(n, total)) - 1);
+  else if (inputEl) inputEl.value = `${g.previewPage + 1}/${total}`;
 }
 
 // Run after the current page is in the DOM: lay out aspect-ratio photo grids,

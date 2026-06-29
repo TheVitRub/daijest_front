@@ -210,11 +210,9 @@ export function syncAdminUserList() {
 export function renderAdminSection() {
   if (!g.currentUser?.isAdmin) return "";
   if (!g.adminPanelOpen) {
-    return `
-      <section class="drawer-section">
-        <div class="projects-heading plain-heading"><span>Администратор</span></div>
-        <button type="button" class="drawer-new-project" data-act="openAdminPanel">Управление пользователями</button>
-      </section>`;
+    g.adminPanelOpen = true;
+    g.adminVisibleLimit = ADMIN_USERS_PAGE_SIZE;
+    loadAdminUsers();
   }
   return `
     <section class="drawer-section">

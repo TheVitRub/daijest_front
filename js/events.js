@@ -121,4 +121,18 @@ export function attachDelegatedEvents(root = document) {
   };
   root.addEventListener("mousedown", (e) => setDraggable(e, true));
   root.addEventListener("mouseup", (e) => setDraggable(e, false));
+
+  root.addEventListener("focusin", (e) => {
+    const el = e.target;
+    if (el.tagName === "TEXTAREA" && "collapsible" in el.dataset) {
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
+    }
+  });
+  root.addEventListener("focusout", (e) => {
+    const el = e.target;
+    if (el.tagName === "TEXTAREA" && "collapsible" in el.dataset) {
+      el.style.height = "";
+    }
+  });
 }

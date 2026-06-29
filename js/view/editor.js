@@ -8,6 +8,7 @@ import { getCompMeta, getBlockLabel, BLOCK_TYPES } from "../config.js";
 import { state, getBlock, getTiles } from "../state/state.js";
 import { render } from "../render.js";
 import { saveRemoteNow } from "../features/projects.js";
+import { findPageIndexForBlock, renderPreview } from "./preview.js";
 
 export function autoGrow(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
 export function initTextareas() {
@@ -194,7 +195,7 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
         </div>
         <input type="text" placeholder="Заголовок новости" maxlength="600" value="${escAttr(item.title || '')}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"title","$value"]' data-counter="cc_t_${blockId}_${idx}" data-max="600">
         <div class="char-counter" id="cc_t_${blockId}_${idx}">${(item.title||'').length}/600</div>
-        <textarea placeholder="Текст новости" maxlength="600" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"text","$value"]' data-counter="cc_p_${blockId}_${idx}" data-max="600">${escText(item.text || '')}</textarea>
+        <textarea placeholder="Текст новости" maxlength="600" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"text","$value"]' data-counter="cc_p_${blockId}_${idx}" data-max="600" data-collapsible>${escText(item.text || '')}</textarea>
         <div class="char-counter" id="cc_p_${blockId}_${idx}">${(item.text||'').length}/600</div>
         ${photos ? `<div class="media-row">${photos}</div>` : ""}
         <div class="media-layout-row">
@@ -213,53 +214,12 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
                 <button class="item-del-btn metric-collapse-btn" data-act="toggleNewsMetricCollapse" data-args='["${compKey}","${blockId}",${idx}]' title="${item.metricCollapsed ? 'Развернуть' : 'Свернуть'}">${collapseIcon(item.metricCollapsed)}</button>
                 <button class="item-del-btn" data-act="clearNewsMetric" data-args='["${compKey}","${blockId}",${idx}]' title="Удалить метрику">✕</button>
               </div>
-              ${item.metricCollapsed ? '' : `
-                <div class="news-metric-body">
-                ${item.tiles.map((tile, ti) => `
-                  <div class="metric-tile-row">
-                    <div class="metric-tile-fields">
-                      <div class="row2">
-                        <input type="text" class="metric-value-input" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"value","$value"]'>
-                        <input type="text" placeholder="Подпись" value="${escAttr(tile.label||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"label","$value"]'>
-                      </div>
-                      <div class="row2" style="margin-top:4px;">
-                        <input type="text" placeholder="Динамика (опц.)" value="${escAttr(tile.delta||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"delta","$value"]'>
-                        <select style="width:100%;min-width:0" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"direction","$value"]'>
-                          <option value="up"   ${tile.direction==='up'   ?'selected':''}>🟢 рост</option>
-                          <option value="down" ${tile.direction==='down' ?'selected':''}>🔴 падение</option>
-                          <option value="none" ${tile.direction==='none' ?'selected':''}>⚪ нейтрально</option>
-                        </select>
-                      </div>
-                    </div>
-                    <button class="metric-tile-del" data-act="removeMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti}]' title="Удалить">✕</button>
-                  </div>`).join('<div class="metric-tile-sep"></div>')}
-                <button class="add-tile-btn" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>+ Добавить тайл</button>
-                </div>
-              `}
+              ${item.metricCollapsed ? '' : `<div class="news-metric-body">${tileTabsHTML(compKey, blockId, idx, item)}</div>`}
             </div>`
           : `<button class="add-item-btn" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>Метрика +</button>`
         }
       </div>`;
   }
-  const tiles = getTiles(item);
-  const tilesHTML = tiles.map((tile, ti) => `
-    <div class="metric-tile-row">
-      <div class="metric-tile-fields">
-        <div class="row2">
-          <input type="text" class="metric-value-input" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"value","$value"]'>
-          <input type="text" placeholder="Подпись" value="${escAttr(tile.label||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"label","$value"]'>
-        </div>
-        <div class="row2" style="margin-top:4px;">
-          <input type="text" placeholder="Динамика (опц.)" value="${escAttr(tile.delta||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"delta","$value"]'>
-          <select style="width:100%;min-width:0" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti},"direction","$value"]'>
-            <option value="up"   ${tile.direction==='up'   ?'selected':''}>🟢 рост</option>
-            <option value="down" ${tile.direction==='down' ?'selected':''}>🔴 падение</option>
-            <option value="none" ${tile.direction==='none' ?'selected':''}>⚪ нейтрально</option>
-          </select>
-        </div>
-      </div>
-      ${tiles.length > 1 ? `<button class="metric-tile-del" data-act="removeMetricTile" data-args='["${compKey}","${blockId}",${idx},${ti}]' title="Удалить">✕</button>` : ''}
-    </div>`).join('<div class="metric-tile-sep"></div>');
   return `
     <div class="item-block item-block-metric ${item.collapsed ? 'metric-collapsed' : ''}" ${itemDragAttrs(compKey, blockId, idx)}>
       <div class="item-del-row">
@@ -269,19 +229,68 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
         <button class="item-del-btn metric-collapse-btn" data-act="toggleMetricCollapse" data-args='["${compKey}","${blockId}",${idx}]' title="${item.collapsed ? 'Развернуть' : 'Свернуть'}">${collapseIcon(item.collapsed)}</button>
         <button class="item-del-btn" data-act="removeItem" data-args='["${compKey}","${blockId}",${idx}]'>✕</button>
       </div>
-      ${item.collapsed ? '' : `${tilesHTML}
-      <button class="add-tile-btn" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>+ Добавить ещё</button>`}
+      ${item.collapsed ? '' : tileTabsHTML(compKey, blockId, idx, item)}
     </div>`;
 }
+export function setActiveTile(compKey, blockId, itemIdx, tileIdx) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[itemIdx]) return;
+  b.items[itemIdx].activeTileIdx = tileIdx;
+  const editorEl = document.getElementById("editor");
+  const savedScroll = editorEl ? editorEl.scrollTop : 0;
+  renderEditor();
+  if (editorEl) editorEl.scrollTop = savedScroll;
+}
+
+function tileTabsHTML(compKey, blockId, idx, item) {
+  const tiles = item.tiles || [];
+  const active = Math.min(item.activeTileIdx || 0, tiles.length - 1);
+  const tile = tiles[active];
+  return `
+    <div class="tile-tabs">
+      ${tiles.map((_, ti) => `<button class="tile-tab-btn${ti === active ? ' active' : ''}" data-act="setActiveTile" data-args='["${compKey}","${blockId}",${idx},${ti}]'>${ti + 1}</button>`).join('')}
+      <button class="tile-tab-btn tile-tab-add" data-act="addMetricTile" data-args='["${compKey}","${blockId}",${idx}]'>+</button>
+    </div>
+    ${tile ? `<div class="metric-tile-row">
+      <div class="metric-tile-fields">
+        <div class="row2">
+          <input type="text" class="metric-value-input" placeholder="Значение (напр. 150,8М)" value="${escAttr(tile.value||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${active},"value","$value"]'>
+          <input type="text" placeholder="Подпись" value="${escAttr(tile.label||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${active},"label","$value"]'>
+        </div>
+        <div class="row2" style="margin-top:6px;">
+          <input type="text" placeholder="Динамика (опц.)" value="${escAttr(tile.delta||'')}" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${active},"delta","$value"]'>
+          <select style="width:100%;min-width:0" data-act="updateMetricTile" data-args='["${compKey}","${blockId}",${idx},${active},"direction","$value"]'>
+            <option value="up"   ${tile.direction==='up'   ?'selected':''}>🟢 рост</option>
+            <option value="down" ${tile.direction==='down' ?'selected':''}>🔴 падение</option>
+            <option value="none" ${tile.direction==='none' ?'selected':''}>⚪ нейтрально</option>
+          </select>
+        </div>
+      </div>
+      ${tiles.length > 1 ? `<button class="metric-tile-del" data-act="removeMetricTile" data-args='["${compKey}","${blockId}",${idx},${active}]' title="Удалить">✕</button>` : ''}
+    </div>` : ''}`;
+}
+
 export function toggleNewsMetricCollapse(compKey, blockId, idx) {
   const b = getBlock(compKey, blockId);
   if (!b || !b.items[idx]) return;
   b.items[idx].metricCollapsed = !b.items[idx].metricCollapsed;
+  const editorEl = document.getElementById("editor");
+  const savedScroll = editorEl ? editorEl.scrollTop : 0;
   renderEditor();
+  if (editorEl) editorEl.scrollTop = savedScroll;
 }
 export function scrollToPreviewItem(blockId, idx) {
-  const el = document.querySelector(`[data-item-ref="${blockId}-${idx}"]`);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // With a paginated preview the target item may live on a page that isn't
+  // currently shown — switch to its page first, then scroll it into view.
+  const pageIdx = findPageIndexForBlock(blockId);
+  if (pageIdx >= 0 && pageIdx !== g.previewPage) {
+    g.previewPage = pageIdx;
+    renderPreview();
+  }
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`[data-item-ref="${blockId}-${idx}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 export function clearNewsMetric(compKey, blockId, idx) {
   const b = getBlock(compKey, blockId);
@@ -293,7 +302,10 @@ export function toggleMetricCollapse(compKey, blockId, idx) {
   const b = getBlock(compKey, blockId);
   if (!b || !b.items[idx]) return;
   b.items[idx].collapsed = !b.items[idx].collapsed;
+  const editorEl = document.getElementById("editor");
+  const savedScroll = editorEl ? editorEl.scrollTop : 0;
   renderEditor();
+  if (editorEl) editorEl.scrollTop = savedScroll;
 }
 export function blockEditorHTML(compKey, block) {
   const meta  = getCompMeta(compKey);

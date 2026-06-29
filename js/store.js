@@ -58,4 +58,7 @@ export const g = {
   projectDirty: false,
   savingRemote: false,
   booting: true,
+  // Index of the single preview page currently shown (pagination). Keeps memory
+  // bounded: only one digest page lives in the DOM at a time.
+  previewPage: 0,
 };

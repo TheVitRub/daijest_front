@@ -214,6 +214,7 @@ export async function loadRemoteDigest(digestId, quiet) {
     g.currentDigestId = data.digest.id;
     safeStorageSet(CURRENT_DIGEST_KEY, g.currentDigestId);
     loadState(data.digest.state);
+    g.previewPage = 0;
     g.currentProjectTitle = data.digest.title || digestTitle();
     g.currentDigestType = data.digest.digestType || "analytical";
     g.lastRemoteSnapshot = captureState();
@@ -517,6 +518,7 @@ export function confirmDeleteProject(projectId) {
 export async function clearCurrentProject() {
   resetStateToInitial();
   g.revisionPreview = null;
+  g.previewPage = 0;
   render(false);
   rememberSnapshot(captureState());
   saveLocalDraft();
@@ -560,6 +562,7 @@ export async function openRevisionPreview(projectId, revisionId) {
       createdAt: data.revision.createdAt || ""
     };
     loadState(data.revision.state);
+    g.previewPage = 0;
     render(false);
     setSaveStatus("Просмотр v" + data.revision.version);
     await refreshRemoteRevisions();

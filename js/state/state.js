@@ -136,11 +136,14 @@ export function addMetricTile(compKey, blockId, itemIdx) {
   if (!b || !b.items[itemIdx]) return;
   if (!b.items[itemIdx].tiles) b.items[itemIdx].tiles = [];
   b.items[itemIdx].tiles.push({ value: '', label: '', delta: '', direction: 'up' });
+  b.items[itemIdx].activeTileIdx = b.items[itemIdx].tiles.length - 1;
   render();
 }
 export function removeMetricTile(compKey, blockId, itemIdx, tileIdx) {
   const b = getBlock(compKey, blockId);
   if (!b || !b.items[itemIdx] || !b.items[itemIdx].tiles) return;
   b.items[itemIdx].tiles.splice(tileIdx, 1);
+  const len = b.items[itemIdx].tiles.length;
+  if (len > 0) b.items[itemIdx].activeTileIdx = Math.min(b.items[itemIdx].activeTileIdx || 0, len - 1);
   render();
 }

@@ -3,11 +3,17 @@
 // ============================================================
 import { state } from "../state/state.js";
 import { confirmClearCurrentProject } from "./projects.js";
+import { buildPageList, renderExportPageHTML, renderPreview } from "../view/preview.js";
+
+function setEditorLocked(locked) {
+  document.querySelectorAll('#editor input, #editor textarea, #editor select, #editor button')
+    .forEach(el => el.disabled = locked);
+}
 
 export async function exportPDF() {
   if (!state.companies.some(c => c.blocks.length)) { alert("Сначала добавь хотя бы один блок."); return; }
-  const pages = Array.from(document.querySelectorAll('#preview .page'));
-  if (!pages.length) return;
+  const pageList = buildPageList();
+  if (!pageList.length) return;
 
   const jspdfNS = window.jspdf;
   if (!jspdfNS || !jspdfNS.jsPDF) { alert('Библиотека jsPDF не загружена.'); return; }
@@ -17,15 +23,18 @@ export async function exportPDF() {
   const titleEl = btn ? btn.querySelector('.ec-title') : null;
   const restore = titleEl ? titleEl.textContent : '';
   if (btn) btn.disabled = true;
+  setEditorLocked(true);
 
   try {
-    // Reuse the exact PNG export pipeline (pageToDataUrl @ scale 3) so PDF and
-    // PNG render through one engine and look identical. Each digest page keeps
-    // its own pixel size as a separate PDF page.
+    // Render ONE page at a time into the preview, snapshot it, discard, repeat.
+    // This keeps peak memory at ~1 page even for very long digests. The capture
+    // core (pageToDataUrl @ scale 3) is unchanged, so PDF and PNG stay identical.
     let doc = null;
-    for (let i = 0; i < pages.length; i++) {
-      if (titleEl) titleEl.textContent = `Генерация ${i + 1} / ${pages.length}`;
-      const page = pages[i];
+    for (let i = 0; i < pageList.length; i++) {
+      if (titleEl) titleEl.textContent = `Генерация ${i + 1} / ${pageList.length}`;
+      await renderExportPageHTML(pageList[i]);
+      const page = document.querySelector('#preview .page');
+      if (!page) continue;
       const w = Math.round(page.offsetWidth);
       const h = Math.round(page.scrollHeight);
       const orientation = w >= h ? 'l' : 'p';
@@ -37,13 +46,15 @@ export async function exportPDF() {
       }
       doc.addImage(dataUrl, 'PNG', 0, 0, w, h);
     }
-    doc.save('digest.pdf');
+    if (doc) doc.save('digest.pdf');
   } catch (e) {
     console.error('PDF export error:', e);
     alert('Ошибка при генерации PDF. Проверь консоль.');
   } finally {
     if (titleEl) titleEl.textContent = restore || 'Скачать PDF';
     if (btn) btn.disabled = false;
+    setEditorLocked(false);
+    renderPreview(); // restore the paginated on-screen view
   }
 }
 
@@ -146,17 +157,22 @@ export async function pageToDataUrl(page, scale) {
 
 export async function exportPNG() {
   if (!state.companies.some(c => c.blocks.length)) { alert("Сначала добавь хотя бы один блок."); return; }
-  const pages = Array.from(document.querySelectorAll('#preview .page'));
-  if (!pages.length) return;
+  const pageList = buildPageList();
+  if (!pageList.length) return;
 
   const btn = document.querySelector('.export-png');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Генерация...'; }
+  setEditorLocked(true);
 
   try {
+    // One page in the DOM at a time (see exportPDF) — bounded peak memory.
     const zip = new JSZip();
-    for (let i = 0; i < pages.length; i++) {
-      if (btn) btn.textContent = `⏳ ${i + 1} / ${pages.length}`;
-      const dataUrl = await pageToDataUrl(pages[i], 3);
+    for (let i = 0; i < pageList.length; i++) {
+      if (btn) btn.textContent = `⏳ ${i + 1} / ${pageList.length}`;
+      await renderExportPageHTML(pageList[i]);
+      const page = document.querySelector('#preview .page');
+      if (!page) continue;
+      const dataUrl = await pageToDataUrl(page, 3);
       zip.file(`page-${String(i + 1).padStart(2, '0')}.png`, dataUrl.split(',')[1], { base64: true });
     }
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -169,6 +185,8 @@ export async function exportPNG() {
     alert('Ошибка при генерации PNG. Проверь консоль.');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🖼 Скачать PNG'; }
+    setEditorLocked(false);
+    renderPreview(); // restore the paginated on-screen view
   }
 }
 

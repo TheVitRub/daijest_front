@@ -31,6 +31,7 @@ services:
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       MIGRATIONS_DIR: /app/migrations
       MEDIA_DIR: /app/media
+      MEDIA_URL_PREFIX: ${MEDIA_URL_PREFIX:-/daijest/api/media}
     volumes:
       - "${MEDIA_PATH:-./media}:/app/media"
     ports:

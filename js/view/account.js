@@ -8,6 +8,17 @@ import { formatProjectDate, currentVersion, projectById } from "../features/proj
 import { saveStatusClass, saveStatusSummary, renderShellState, setSaveStatus } from "./status.js";
 import { renderAdminSection, renderAdminEditModal } from "../features/admin.js";
 
+let authScaleResizeBound = false;
+
+function syncAuthScale(el) {
+  if (!el) return;
+  const fitScale = Math.max(window.innerWidth / 2500, window.innerHeight / 1350);
+  const readableMin = window.innerWidth >= 1024 ? 0.72 : window.innerWidth >= 768 ? 0.62 : fitScale;
+  const footerSafeMax = Math.max(0.48, (window.innerHeight / 2 - 20) / 647);
+  const scale = Math.min(Math.max(fitScale, readableMin), footerSafeMax);
+  el.style.setProperty("--auth-scale", String(scale));
+}
+
 export function renderAuthScreen() {
   const el = document.getElementById("authScreen");
   if (!el) return;
@@ -17,25 +28,37 @@ export function renderAuthScreen() {
     return;
   }
 
+  syncAuthScale(el);
+  if (!authScaleResizeBound) {
+    authScaleResizeBound = true;
+    window.addEventListener("resize", () => syncAuthScale(document.getElementById("authScreen")));
+  }
+
   el.innerHTML = `
-    <div class="auth-card">
-      <div class="auth-brand">
-        <img src="logos/logo-skladka.svg" alt="">
-        <div>
-          <h1>Складка</h1>
-          <p>Введите код доступа, чтобы войти.</p>
+    <div class="auth-bg-grid" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <main class="auth-code-shell">
+      <section class="auth-logo-card">
+        <div class="digest-logo" aria-label="Волков Дайджест">
+          <img class="digest-logo-wordmark" src="logos/digest-wordmark.svg" alt="">
+          <img class="digest-logo-badge" src="logos/digest-volkov-badge.svg" alt="">
         </div>
-      </div>
-      <form class="auth-form" data-act="submitAuthForm">
-        <label>Код доступа
-          <input id="authCode" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" value="${escAttr(g.authDraft.code)}" data-bind="authDraft.code" placeholder="8 цифр" autofocus>
-        </label>
-        ${g.authError ? `<div class="auth-error">${escText(g.authError)}</div>` : ""}
-        <button class="auth-submit" type="submit" ${g.authBusy ? "disabled" : ""}>
-          ${g.authBusy ? "Подождите..." : "Войти"}
-        </button>
-      </form>
-    </div>`;
+      </section>
+      <section class="auth-card auth-card--code">
+        <form class="auth-form auth-form--code" data-act="submitAuthForm">
+          <h1>Введите код пользователя</h1>
+          <input id="authCode" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" value="${escAttr(g.authDraft.code)}" data-bind="authDraft.code" placeholder="Введите код доступа" aria-label="Код пользователя">
+          ${g.authError ? `<div class="auth-error">${escText(g.authError)}</div>` : ""}
+          <div class="primary-actions auth-code-actions">
+            <button class="auth-submit primary-action" type="submit" ${g.authBusy ? "disabled" : ""}>
+              ${g.authBusy ? "Подождите..." : "Войти"}
+            </button>
+          </div>
+        </form>
+      </section>
+      <p class="auth-beta-note">Сервис находится в бете. Ошибки - это нормально</p>
+    </main>`;
 }
 
 export function digestTypeLabel(type) {

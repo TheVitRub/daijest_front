@@ -1400,6 +1400,265 @@ label { color: #888; }
 }
 .auth-admin-link:hover { color: #aaa; }
 
+/* Code login screen */
+.auth-screen:has(.auth-code-shell) {
+  position: relative;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  background: #151515;
+}
+.auth-bg-grid {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2500px;
+  height: 1350px;
+  transform: translate(-50%, -50%) scale(var(--auth-scale, 1));
+  overflow: hidden;
+  pointer-events: none;
+}
+.auth-bg-grid span {
+  position: absolute;
+  border: 1px solid #8c8c8c;
+  border-radius: 50px;
+  opacity: 0.66;
+}
+.auth-bg-grid span:nth-child(1) {
+  left: -7.08%;
+  top: 5.07%;
+  width: 21.32%;
+  height: 89.85%;
+}
+.auth-bg-grid span:nth-child(2) {
+  left: 16.28%;
+  top: -10.07%;
+  width: 21.32%;
+  height: 28.81%;
+}
+.auth-bg-grid span:nth-child(3) {
+  left: 16.27%;
+  top: 22.67%;
+  width: 21.32%;
+  height: 50.81%;
+}
+.auth-bg-grid span:nth-child(4) {
+  left: 63.32%;
+  top: -4.96%;
+  width: 21.32%;
+  height: 83.04%;
+}
+.auth-bg-grid span:nth-child(5) {
+  left: 86.64%;
+  top: 5.07%;
+  width: 21.32%;
+  height: 89.85%;
+}
+.auth-bg-grid span:nth-child(6) {
+  left: 63.33%;
+  top: 82.89%;
+  width: 21.32%;
+  height: 20.3%;
+}
+.auth-bg-grid span:nth-child(7) {
+  left: 39.6%;
+  top: 68.61%;
+  width: 21.32%;
+  height: 40.89%;
+  border-radius: 39px;
+}
+.auth-bg-grid span:nth-child(8) {
+  left: 16.27%;
+  top: 77.41%;
+  width: 21.32%;
+  height: 56.3%;
+  border-radius: 50px;
+}
+.auth-bg-grid span:nth-child(9) {
+  left: 39.6%;
+  top: -13.63%;
+  width: 21.32%;
+  height: 22.01%;
+  border-radius: 50px;
+}
+.auth-code-shell {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 2500px;
+  height: 1350px;
+  transform: translate(-50%, -50%) scale(var(--auth-scale, 1));
+  transform-origin: center;
+  color: #fff;
+}
+.auth-logo-card,
+.auth-card.auth-card--code {
+  position: absolute;
+  left: 990px;
+  width: 532.949px;
+  border: 1px solid #8c8c8c;
+  border-radius: 50px;
+  background: transparent;
+  box-shadow: none;
+}
+.auth-logo-card {
+  top: 164px;
+  height: 297.084px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.digest-logo {
+  position: relative;
+  width: 351.922px;
+  height: 144px;
+}
+.digest-logo-wordmark,
+.digest-logo-badge {
+  position: absolute;
+  display: block;
+  max-width: none;
+}
+.digest-logo-wordmark {
+  left: 0;
+  bottom: 0;
+  width: 351.922px;
+  height: 108.821px;
+}
+.digest-logo-badge {
+  right: 0;
+  top: 0;
+  width: 210.062px;
+  height: 46.33px;
+}
+.auth-card.auth-card--code {
+  top: 511.08px;
+  height: 365.152px;
+  padding: 60px 28px 94px 72px;
+  border-radius: 50px;
+}
+.auth-form.auth-form--code {
+  width: 388px;
+  height: 100%;
+}
+.auth-form.auth-form--code h1 {
+  margin: 0 0 64px;
+  color: #9d9d9d;
+  font-family: "Inter", "IBMPlex", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 30px;
+  font-weight: 500;
+  line-height: normal;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.auth-form.auth-form--code input {
+  width: 388px;
+  height: 42px;
+  padding: 10px;
+  border: 0;
+  border-bottom: 1px solid #666565;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 400;
+  text-align: center;
+}
+.auth-form.auth-form--code input:focus {
+  border-color: #777;
+  background: transparent;
+}
+.auth-form.auth-form--code input::placeholder {
+  color: #7a7a7a;
+  opacity: 1;
+  font-weight: 400;
+}
+.auth-form.auth-form--code input:focus::placeholder {
+  opacity: 0;
+}
+.auth-form.auth-form--code .auth-error {
+  margin-top: 14px;
+  text-align: center;
+}
+.auth-code-actions {
+  display: block;
+  width: 388px;
+  margin-top: 24px;
+}
+.auth-form.auth-form--code .auth-submit {
+  width: 388px;
+  height: 44px;
+  margin-top: 0;
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1;
+}
+.auth-beta-note {
+  position: absolute;
+  left: calc(50% - 194px);
+  top: 1301px;
+  margin: 0;
+  color: #717171;
+  font-family: "Inter", "IBMPlex", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: normal;
+  text-align: center;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .auth-screen {
+    padding: 20px 14px;
+  }
+  .auth-card {
+    padding: 24px 20px 22px;
+  }
+  .auth-brand {
+    grid-template-columns: 44px 1fr;
+    column-gap: 10px;
+    margin-bottom: 26px;
+  }
+  .auth-brand h1 {
+    font-size: 22px;
+  }
+  .auth-screen:has(.auth-code-shell) {
+    padding: 0;
+  }
+  .auth-code-shell {
+    width: 2500px;
+    height: 1350px;
+    transform: translate(-50%, -50%) scale(var(--auth-scale, 1));
+  }
+  .auth-bg-grid {
+    width: 2500px;
+    height: 1350px;
+    transform: translate(-50%, -50%) scale(var(--auth-scale, 1));
+  }
+  .auth-logo-card {
+    left: 990px;
+    top: 164px;
+    width: 532.949px;
+    height: 297.084px;
+    border-radius: 50px;
+  }
+  .auth-card.auth-card--code {
+    left: 990px;
+    top: 511.08px;
+    width: 532.949px;
+    height: 365.152px;
+    padding: 60px 28px 94px 72px;
+    border-radius: 50px;
+  }
+  .auth-form.auth-form--code h1 {
+    margin-bottom: 64px;
+    font-size: 30px;
+    white-space: nowrap;
+    text-align: left;
+  }
+}
+
 /* ===  Digest type badge in project list === */
 .project-item-title-row {
   display: flex;

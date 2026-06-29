@@ -74,7 +74,7 @@ export function newsItemHTML(it, refId) {
   const ref = refId ? ` data-item-ref="${refId}"` : '';
   if (photos.length && it.photoLayout === 'side') {
     return `
-      <div${metricHTML ? ' class="news-item-wrap"' : ''}${ref}>
+      <div class="${metricHTML ? 'news-item-wrap' : 'news-block'}"${ref}>
         <div class="news-with-photo">
           <div class="news-side-text"><div class="news-side-inner">${textBlock}</div></div>
           ${photoGrid.replace('class="pt-photos', 'class="pt-photos side-photos')}

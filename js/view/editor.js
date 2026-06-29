@@ -4,7 +4,7 @@
 import { g } from "../store.js";
 import { escAttr, escText } from "../dom/escape.js";
 import { collapseIcon, ITEM_DRAG_HANDLE, itemDragAttrs, dragHandle } from "../dom/icons.js";
-import { getCompMeta, getBlockLabel, BLOCK_TYPES, photoSrc } from "../config.js";
+import { getCompMeta, getBlockLabel, BLOCK_TYPES, imageSrc, photoSrc } from "../config.js";
 import { state, getBlock, getTiles } from "../state/state.js";
 import { render } from "../render.js";
 import { saveRemoteNow } from "../features/projects.js";
@@ -129,10 +129,11 @@ export function closeRatioModal() {
 
 // ============================================================
 export function digestCoverEditorHTML() {
-  const imgHTML = state.digestCover
+  const coverSrc = imageSrc(state.digestCover);
+  const imgHTML = coverSrc
     ? `<div class="media-row">
          <div class="media-thumb">
-           <img src="${state.digestCover}">
+           <img src="${escAttr(coverSrc)}">
            <button class="media-del" data-act="removeDigestCover">✕</button>
          </div>
        </div>`
@@ -153,8 +154,16 @@ export function digestCoverEditorHTML() {
 }
 export async function loadDigestCover(files) {
   if (!files || !files.length) return;
-  state.digestCover = await readFileAsDataURL(files[0]);
-  render();
+  try {
+    const file = files[0];
+    const blob = await downscaleToBlob(file);
+    state.digestCover = { mediaId: await uploadMedia(blob, file.name || 'cover.jpg') };
+    render();
+    saveRemoteNow();
+  } catch (err) {
+    console.error('cover upload failed:', err);
+    alert('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РѕР±Р»РѕР¶РєСѓ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РµС‰С‘ СЂР°Р·.');
+  }
 }
 export function removeDigestCover() {
   state.digestCover = "";
@@ -163,10 +172,11 @@ export function removeDigestCover() {
 
 export function letterEditorHTML() {
   const l = state.letter;
-  const coverHTML = l.cover
+  const coverSrc = imageSrc(l.cover);
+  const coverHTML = coverSrc
     ? `<div class="media-row">
          <div class="media-thumb">
-           <img src="${l.cover}">
+           <img src="${escAttr(coverSrc)}">
            <button class="media-del" data-act="removeLetterCover">✕</button>
          </div>
        </div>`
@@ -199,8 +209,16 @@ export function toggleLetterSection() {
 }
 export async function loadLetterCover(files) {
   if (!files || !files.length) return;
-  state.letter.cover = await readFileAsDataURL(files[0]);
-  render();
+  try {
+    const file = files[0];
+    const blob = await downscaleToBlob(file);
+    state.letter.cover = { mediaId: await uploadMedia(blob, file.name || 'cover.jpg') };
+    render();
+    saveRemoteNow();
+  } catch (err) {
+    console.error('letter cover upload failed:', err);
+    alert('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РѕР±Р»РѕР¶РєСѓ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РµС‰С‘ СЂР°Р·.');
+  }
 }
 export function removeLetterCover() {
   state.letter.cover = "";

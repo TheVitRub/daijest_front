@@ -2,19 +2,21 @@
 //   PREVIEW VIEW — digest pages HTML
 // ============================================================
 import { escAttr, escText } from "../dom/escape.js";
-import { getCompMeta, getBlockLabel, photoSrc } from "../config.js";
+import { getCompMeta, getBlockLabel, imageSrc, photoSrc } from "../config.js";
 import { state, getTiles } from "../state/state.js";
 import { g } from "../store.js";
 
 export function pageCover() {
-  if (!state.digestCover) return "";
-  return `<div class="page cover"><img src="${state.digestCover}" alt=""></div>`;
+  const coverSrc = imageSrc(state.digestCover);
+  if (!coverSrc) return "";
+  return `<div class="page cover"><img src="${escAttr(coverSrc)}" alt=""></div>`;
 }
 
 export function pageLetter() {
   const l = state.letter;
   const paras = (l.paragraphs || "").split("\n").filter(p => p.trim()).map(p => `<p>${escText(p)}</p>`).join("");
-  const bgStyle = l.cover ? ` style="background-image:url('${l.cover}');background-size:cover;background-position:center;"` : '';
+  const coverSrc = imageSrc(l.cover);
+  const bgStyle = coverSrc ? ` style="background-image:url('${escAttr(coverSrc)}');background-size:cover;background-position:center;"` : '';
   return `
     <div class="page letter"${bgStyle}>
       <div class="letter-body-card">

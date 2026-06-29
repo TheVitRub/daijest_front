@@ -37,11 +37,18 @@ export function getBlockLabel(key) { return (BLOCK_TYPES.find(t => t.key === key
 // Build the URL the browser uses to load a stored image by its media id.
 export function mediaUrl(id) { return `${API_BASE}/media/${id}`; }
 
+// Resolve any image reference to a browser-loadable src. New media-backed
+// fields use { mediaId }; old saved projects may still contain direct strings.
+export function imageSrc(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (value.mediaId) return mediaUrl(value.mediaId);
+  if (value.src) return imageSrc(value.src);
+  return "";
+}
+
 // Resolve a photo entry to a displayable src. New entries are { mediaId, ratio };
 // legacy shapes (plain data-URL string or { src }) are still tolerated.
 export function photoSrc(p) {
-  if (!p) return "";
-  if (typeof p === "string") return p;
-  if (p.mediaId) return mediaUrl(p.mediaId);
-  return p.src || "";
+  return imageSrc(p);
 }

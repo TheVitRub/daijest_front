@@ -20,7 +20,7 @@ export const INITIAL_STATE_SNAPSHOT = JSON.stringify(state);
 
 export function loadState(data) {
   if (!data || typeof data !== 'object') return;
-  if (typeof data.digestCover === 'string') state.digestCover = data.digestCover;
+  if (typeof data.digestCover === 'string' || (data.digestCover && typeof data.digestCover === 'object')) state.digestCover = data.digestCover;
   if (Array.isArray(data.companies)) state.companies = data.companies;
   if (data.letter && typeof data.letter === 'object') state.letter = data.letter;
 }

@@ -13,3 +13,17 @@ export async function apiRequest(path, options = {}) {
   if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
   return data;
 }
+
+// Upload one image as multipart/form-data and return its media id. We must NOT
+// set Content-Type here — the browser adds the multipart boundary itself.
+export async function uploadMedia(blob, filename = "photo.jpg") {
+  const form = new FormData();
+  form.append("file", blob, filename);
+  const headers = {};
+  if (g.authToken) headers.Authorization = "Bearer " + g.authToken;
+  const res = await fetch(API_BASE + "/media", { method: "POST", headers, body: form });
+  let data = {};
+  try { data = await res.json(); } catch (_) {}
+  if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+  return data.id;
+}

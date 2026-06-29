@@ -134,6 +134,11 @@ export async function pageToDataUrl(page, scale) {
 
   document.body.appendChild(clone);
 
+  // The clone sits offscreen (top:-99999px); network images marked
+  // loading="lazy" would never load there and the wait below would hang. Force
+  // them eager so each truly loads before we snapshot.
+  clone.querySelectorAll('img[loading]').forEach(img => img.removeAttribute('loading'));
+
   await Promise.all(Array.from(clone.querySelectorAll('img')).map(img =>
     new Promise(res => { if (img.complete) res(); else { img.onload = res; img.onerror = res; } })
   ));

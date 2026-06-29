@@ -33,3 +33,15 @@ export const BLOCK_TYPES = [
 
 export function getCompMeta(key) { return COMPANIES.find(c => c.key === key) || COMPANIES[0]; }
 export function getBlockLabel(key) { return (BLOCK_TYPES.find(t => t.key === key) || {}).label || key; }
+
+// Build the URL the browser uses to load a stored image by its media id.
+export function mediaUrl(id) { return `${API_BASE}/media/${id}`; }
+
+// Resolve a photo entry to a displayable src. New entries are { mediaId, ratio };
+// legacy shapes (plain data-URL string or { src }) are still tolerated.
+export function photoSrc(p) {
+  if (!p) return "";
+  if (typeof p === "string") return p;
+  if (p.mediaId) return mediaUrl(p.mediaId);
+  return p.src || "";
+}

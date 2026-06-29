@@ -4,11 +4,12 @@
 import { g } from "../store.js";
 import { escAttr, escText } from "../dom/escape.js";
 import { collapseIcon, ITEM_DRAG_HANDLE, itemDragAttrs, dragHandle } from "../dom/icons.js";
-import { getCompMeta, getBlockLabel, BLOCK_TYPES } from "../config.js";
+import { getCompMeta, getBlockLabel, BLOCK_TYPES, photoSrc } from "../config.js";
 import { state, getBlock, getTiles } from "../state/state.js";
 import { render } from "../render.js";
 import { saveRemoteNow } from "../features/projects.js";
 import { findPageIndexForBlock, renderPreview } from "./preview.js";
+import { uploadMedia } from "../api.js";
 
 export function autoGrow(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
 const COLLAPSED_H = 56;
@@ -40,30 +41,35 @@ export function readFileAsDataURL(file) {
     r.readAsDataURL(file);
   });
 }
-// Downscale + re-encode an uploaded photo so the state doesn't carry multi-MB
-// originals (which bloat memory, the undo history and exports). 2400px on the
-// long side is plenty for the preview AND a 3x export of any news cell.
-export function downscalePhoto(file, maxDim = 2400, quality = 0.82) {
+// Downscale + re-encode an uploaded photo to a JPEG Blob before upload, so the
+// server stores a reasonably sized image (not a multi-MB original). 3600px on
+// the long side matches a full-width photo at the 3x export scale (page is
+// 1180px), so wide/cover photos stay crisp instead of being upscaled. Photos
+// now live as files (not in the JSON), so the larger size only costs disk.
+// Always yields JPEG so the backend's image whitelist accepts it.
+export function downscaleToBlob(file, maxDim = 3600, quality = 0.92) {
   return new Promise(async (resolve) => {
-    const dataUrl = await readFileAsDataURL(file);
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-        const w = Math.max(1, Math.round(img.width * scale));
-        const h = Math.max(1, Math.round(img.height * scale));
-        const canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
-        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-        const out = canvas.toDataURL("image/jpeg", quality);
-        // keep whichever is smaller (tiny images may already be smaller as-is)
-        resolve(out.length < dataUrl.length ? out : dataUrl);
-      } catch (_) {
-        resolve(dataUrl);
-      }
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
+    try {
+      const dataUrl = await readFileAsDataURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", quality);
+        } catch (_) {
+          resolve(file);
+        }
+      };
+      img.onerror = () => resolve(file);
+      img.src = dataUrl;
+    } catch (_) {
+      resolve(file);
+    }
   });
 }
 export async function loadItemPhotos(compKey, blockId, idx, files) {
@@ -72,11 +78,30 @@ export async function loadItemPhotos(compKey, blockId, idx, files) {
   if (!b || !b.items[idx]) return;
   if (!b.items[idx].photos) b.items[idx].photos = [];
   const ratio = _ratioCtx.ratio || b.items[idx].photoRatio || '4/3';
-  for (const f of files) b.items[idx].photos.push({ src: await downscalePhoto(f), ratio });
-  render();
-  // Photos are large and easy to lose on a quick refresh — save immediately
-  // instead of waiting for the 5-second autosave timer.
-  saveRemoteNow();
+  const photos = b.items[idx].photos;
+  let uploadedAny = false;
+  for (const f of Array.from(files)) {
+    // Optimistic placeholder so the slot fills with a spinner while uploading.
+    const ph = { uploading: true, ratio };
+    photos.push(ph);
+    render();
+    try {
+      const blob = await downscaleToBlob(f);
+      ph.mediaId = await uploadMedia(blob, f.name || 'photo.jpg');
+      delete ph.uploading;
+      uploadedAny = true;
+    } catch (err) {
+      console.error('photo upload failed:', err);
+      // Keep state clean: drop the failed placeholder so no broken ref persists.
+      const i = photos.indexOf(ph);
+      if (i >= 0) photos.splice(i, 1);
+      alert('Не удалось загрузить фото. Попробуйте ещё раз.');
+    }
+    render();
+  }
+  // State now holds only mediaId refs (tiny) — save immediately so a quick
+  // refresh doesn't lose the just-added photos.
+  if (uploadedAny) saveRemoteNow();
 }
 export function removeItemPhoto(compKey, blockId, itemIdx, photoIdx) {
   const b = getBlock(compKey, blockId);
@@ -188,9 +213,12 @@ export function removeLetterCover() {
 export function itemEditorHTML(compKey, blockId, item, idx) {
   if (item.kind === "news") {
     const photos = (item.photos || []).map((p, pi) => {
-      const src = typeof p === 'string' ? p : p.src;
+      if (p && p.uploading) {
+        return `<div class="media-thumb media-thumb-loading"><div class="media-spinner"></div></div>`;
+      }
+      const src = photoSrc(p);
       return `<div class="media-thumb">
-        <img src="${src}">
+        <img src="${escAttr(src)}" loading="lazy" alt="">
         <button class="media-del" data-act="removeItemPhoto" data-args='["${compKey}","${blockId}",${idx},${pi}]'>✕</button>
       </div>`;
     }).join("");

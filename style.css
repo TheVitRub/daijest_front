@@ -307,6 +307,24 @@ input[type=file] { font-size: 12px; }
   border-radius: 6px;
   display: block;
 }
+.media-thumb-loading {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.media-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #c8ccd2;
+  border-top-color: #65676b;
+  border-radius: 50%;
+  animation: media-spin 0.7s linear infinite;
+}
+@keyframes media-spin { to { transform: rotate(360deg); } }
 .media-del {
   position: absolute;
   top: -4px;

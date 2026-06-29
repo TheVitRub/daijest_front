@@ -4,3 +4,11 @@
 *.log
 *.backup-*
 tmp/
+# local backup snapshots (pagination / level3 / quality)
+*-backup-*/
+*.bak-*
+# local-only deploy symlinks (absolute host paths; server provides its own layout)
+deploy/backend
+deploy/frontend
+# backend lives in its own repository (daijest_backend), not embedded here
+daijest_backend/

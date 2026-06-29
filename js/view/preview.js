@@ -2,7 +2,7 @@
 //   PREVIEW VIEW — digest pages HTML
 // ============================================================
 import { escAttr, escText } from "../dom/escape.js";
-import { getCompMeta, getBlockLabel } from "../config.js";
+import { getCompMeta, getBlockLabel, photoSrc } from "../config.js";
 import { state, getTiles } from "../state/state.js";
 import { g } from "../store.js";
 
@@ -49,7 +49,9 @@ export function metricGridHTML(tiles, refId) {
 }
 
 export function newsItemHTML(it, refId) {
-  const photos = it.photos || [];
+  // Only photos that resolve to a real src render — this drops in-flight upload
+  // placeholders (which have no mediaId yet) so the grid doesn't show gaps.
+  const photos = (it.photos || []).filter(p => photoSrc(p));
   const textBlock = `
     ${it.title ? `<h4>${escText(it.title)}</h4>` : ""}
     ${it.text  ? `<p>${escText(it.text).replace(/\n/g, '<br>')}</p>`   : ""}`;
@@ -66,8 +68,8 @@ export function newsItemHTML(it, refId) {
   const photoGrid = photos.length ? `
     <div class="pt-photos n${photoCount}"${gridCols}>
       ${photoSlice.map((p, i) => {
-        const src = typeof p === 'string' ? p : p.src;
-        return `<div class="pt-img" style="aspect-ratio:${photoRatioVals[i].r}"><img src="${escAttr(src)}" alt=""></div>`;
+        const src = photoSrc(p);
+        return `<div class="pt-img" style="aspect-ratio:${photoRatioVals[i].r}"><img src="${escAttr(src)}" loading="lazy" alt=""></div>`;
       }).join("")}
     </div>` : "";
   const metricHTML = (it.tiles && it.tiles.length) ? metricGridHTML(it.tiles) : '';

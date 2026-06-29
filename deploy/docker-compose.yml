@@ -30,6 +30,9 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-djst}:${POSTGRES_PASSWORD:-djst}@postgres:5432/${POSTGRES_DB:-djst}?sslmode=disable
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       MIGRATIONS_DIR: /app/migrations
+      MEDIA_DIR: /app/media
+    volumes:
+      - djst-media:/app/media
     ports:
       - "${BACKEND_PORT:-127.0.0.1:18093}:8080"
     healthcheck:
@@ -51,3 +54,4 @@ services:
 
 volumes:
   djst-postgres:
+  djst-media:

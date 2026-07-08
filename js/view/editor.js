@@ -408,8 +408,8 @@ export function companyEditorHTML(compState) {
         <span class="company-dot" style="background:${meta.color}"></span>
         <span class="company-name">${escText(meta.name)}</span>
         <span class="company-actions">
-          <button type="button" class="company-json-btn" data-act="importCompanyJSON" data-args='["${compState.key}"]' title="Импорт JSON в ${escAttr(meta.name)}">Импорт</button>
-          <button type="button" class="company-json-btn" data-act="exportCompanyJSON" data-args='["${compState.key}"]' title="Экспорт JSON из ${escAttr(meta.name)}">Экспорт</button>
+          <button type="button" class="company-json-btn" data-act="importCompanyJSON" data-args='["${compState.key}"]' title="Загрузить JSON в ${escAttr(meta.name)}">Загрузить</button>
+          <button type="button" class="company-json-btn" data-act="exportCompanyJSON" data-args='["${compState.key}"]' title="Скачать JSON из ${escAttr(meta.name)}">Скачать</button>
         </span>
         <span class="company-chevron">${collapseIcon(compState.collapsed)}</span>
       </div>

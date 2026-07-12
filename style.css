@@ -387,12 +387,6 @@ input[type=file] { font-size: 12px; }
 .media-add-btn:hover { background: #e4e6eb; }
 
 /* === Item add row === */
-.item-add-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 8px 0 6px 0;
-}
 .add-item-btn {
   padding: 8px;
   background: #fff;
@@ -405,7 +399,7 @@ input[type=file] { font-size: 12px; }
 }
 .add-item-btn:hover { background: #f0f2f5; }
 .comment-input {
-  margin-top: 4px;
+  margin-top: 12px;
 }
 .char-counter {
   font-size: 11px;
@@ -486,6 +480,13 @@ input[type=file] { font-size: 12px; }
   overflow: hidden;
 }
 .add-block-menu.open { display: block; }
+/* .block-card clips overflow (rounded corners), so a floating dropdown
+   gets cut off inside it — render this variant in-flow instead. */
+.add-block-menu.item-add-menu {
+  position: static;
+  box-shadow: none;
+  margin-top: 4px;
+}
 .add-menu-item {
   padding: 10px 14px;
   font-size: 13px;
@@ -872,6 +873,15 @@ input[type=file] { font-size: 12px; }
 }
 .kpi-grid.cols-1 { grid-template-columns: 1fr; }
 .kpi-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+/* Optional title above a standalone metric grid (white on the themed page). */
+.kpi-title {
+  color: #fff;
+  font-family: "OfficinaBold", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
 .kpi-tile {
   background: #fff;
   border-radius: 14px;
@@ -918,6 +928,11 @@ input[type=file] { font-size: 12px; }
 .ach-list.no-photo { grid-template-columns: 1fr; }
 .ach-items { display: flex; flex-direction: column; gap: 0; }
 .ach-items > * + * { border-top: 2px solid rgba(255,255,255,0.35); padding-top: 16px; margin-top: 0; }
+/* The wrapper makes .kpi-grid a :last-child (padding-bottom:0), so the section
+   itself must carry the 16px bottom gap the bare grid used to have — otherwise
+   the next item's separator line touches the metric tiles. Zeroed when it's the
+   last item on the page by `.ach-items > :last-child`. */
+.kpi-section { padding-bottom: 16px; }
 .news-block { display: flex; flex-direction: column; gap: 8px; padding: 16px 0; }
 .news-item-wrap { display: flex; flex-direction: column; gap: 8px; padding-bottom: 16px; }
 .ach-items > :first-child { padding-top: 0; }
@@ -1167,6 +1182,8 @@ input[type=file] { font-size: 12px; }
 .pt-photos.n3 { grid-template-columns: 1fr 1fr 1fr; }
 .pt-photos.n4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .pt-photos:not(.n1) .pt-img { width: 100%; }
+/* Tops photos sit below the card as a sibling — add separation from it. */
+.tops-block .pt-photos { margin-top: 10px; }
 .news-with-photo .side-photos { margin: 0; }
 .news-with-photo .side-photos.n3,
 .news-with-photo .side-photos.n4 { grid-template-columns: 1fr 1fr; }

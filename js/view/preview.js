@@ -89,16 +89,17 @@ export function topsHTML(item, refId) {
         ${sharedTitle !== null ? `<div class="tops-title tops-title--full">${escText(sharedTitle)}</div>` : ''}
         <div class="tops-grid cols-${nCols}">${colsHTML}</div>
       </div>
+      ${photoGridHTML(item)}
     </div>`;
 }
 
-export function newsItemHTML(it, refId) {
-  // Only photos that resolve to a real src render — this drops in-flight upload
-  // placeholders (which have no mediaId yet) so the grid doesn't show gaps.
+// Build the responsive photo grid (up to 4 photos) shared by news and tops
+// items. Ratios come from each photo entry; legacy string photos fall back to
+// the item's photoRatio or 4/3. In-flight uploads (no resolvable src) are
+// dropped so the grid never shows gaps.
+export function photoGridHTML(it) {
   const photos = (it.photos || []).filter(p => photoSrc(p));
-  const textBlock = `
-    ${it.title ? `<h4>${escText(it.title)}</h4>` : ""}
-    ${it.text  ? `<p>${escText(it.text).replace(/\n/g, '<br>')}</p>`   : ""}`;
+  if (!photos.length) return "";
   const photoSlice = photos.slice(0, 4);
   const photoCount = photoSlice.length;
   const photoRatioVals = photoSlice.map(p => {
@@ -109,13 +110,24 @@ export function newsItemHTML(it, refId) {
   const gridCols = photoCount > 1
     ? ` style="grid-template-columns:${photoRatioVals.map(x => x.val.toFixed(3)+'fr').join(' ')}"`
     : '';
-  const photoGrid = photos.length ? `
+  return `
     <div class="pt-photos n${photoCount}"${gridCols}>
       ${photoSlice.map((p, i) => {
         const src = photoSrc(p);
         return `<div class="pt-img" style="aspect-ratio:${photoRatioVals[i].r}"><img src="${escAttr(src)}" loading="lazy" alt=""></div>`;
       }).join("")}
-    </div>` : "";
+    </div>`;
+}
+
+export function newsItemHTML(it, refId) {
+  // Only photos that resolve to a real src render — this drops in-flight upload
+  // placeholders (which have no mediaId yet) so the layout branching below sees
+  // the real count.
+  const photos = (it.photos || []).filter(p => photoSrc(p));
+  const textBlock = `
+    ${it.title ? `<h4>${escText(it.title)}</h4>` : ""}
+    ${it.text  ? `<p>${escText(it.text).replace(/\n/g, '<br>')}</p>`   : ""}`;
+  const photoGrid = photoGridHTML(it);
   const metricHTML = (it.tiles && it.tiles.length) ? metricGridHTML(it.tiles) : '';
   const ref = refId ? ` data-item-ref="${refId}"` : '';
   if (photos.length && it.photoLayout === 'side') {
@@ -152,7 +164,11 @@ export function pageBlock(compKey, block) {
   const itemsHTML = block.items.map((it, idx) => {
     const refId = `${block.id}-${idx}`;
     if (it.kind === 'metric') {
-      return metricGridHTML(getTiles(it), refId);
+      const grid = metricGridHTML(getTiles(it), refId);
+      if (!(it.title || '').trim()) return grid;
+      // Title + grid wrapped as ONE .ach-items child so the section separator
+      // sits above the title, not between the title and its grid.
+      return `<div class="kpi-section"><div class="kpi-title">${escText(it.title)}</div>${grid}</div>`;
     }
     if (it.kind === 'tops') {
       return topsHTML(it, refId);

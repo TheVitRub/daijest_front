@@ -33,6 +33,11 @@ export function toggleAddMenu(compKey) {
   const menu = document.querySelector(`[data-addmenu="${compKey}"]`);
   if (menu) menu.classList.toggle("open");
 }
+// Toggle a block's "add item" menu (DOM-only).
+export function toggleItemAddMenu(blockId) {
+  const menu = document.querySelector(`[data-itemaddmenu="${blockId}"]`);
+  if (menu) menu.classList.toggle("open");
+}
 export function readFileAsDataURL(file) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -294,6 +299,15 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
         <button class="tops-edit-del" data-act="removeTopRow" data-args='["${compKey}","${blockId}",${idx},${active},${ri}]' title="Удалить строку">✕</button>
       </div>`;
     }).join('');
+    const photos = (item.photos || []).map((p, pi) => {
+      if (p && p.uploading) {
+        return `<div class="media-thumb media-thumb-loading"><div class="media-spinner"></div></div>`;
+      }
+      return `<div class="media-thumb">
+        <img src="${escAttr(photoSrc(p))}" loading="lazy" alt="">
+        <button class="media-del" data-act="removeItemPhoto" data-args='["${compKey}","${blockId}",${idx},${pi}]'>✕</button>
+      </div>`;
+    }).join("");
     return `
       <div class="item-block item-block-tops" ${itemDragAttrs(compKey, blockId, idx)}>
         <div class="item-del-row">
@@ -312,6 +326,11 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
           <button class="add-item-btn" data-act="addTopRow" data-args='["${compKey}","${blockId}",${idx},${active}]'>Строка +</button>
           ${canRemove ? `<button class="add-item-btn tops-del-col" data-act="removeTopColumn" data-args='["${compKey}","${blockId}",${idx},${active}]' title="Удалить эту колонку">Удалить колонку</button>` : ''}
         </div>
+        ${photos ? `<div class="media-row">${photos}</div>` : ""}
+        <div class="media-layout-row">
+          <button class="media-add-btn" data-act="showRatioModal" data-args='["${compKey}","${blockId}",${idx}]'>Медиа +</button>
+        </div>
+        <input type="file" id="mi_${blockId}_${idx}" accept="image/*" multiple style="display:none" data-act="loadItemPhotos" data-args='["${compKey}","${blockId}",${idx},"$files"]'>
       </div>`;
   }
   return `
@@ -323,7 +342,9 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
         <button class="item-del-btn metric-collapse-btn" data-act="toggleMetricCollapse" data-args='["${compKey}","${blockId}",${idx}]' title="${item.collapsed ? 'Развернуть' : 'Свернуть'}">${collapseIcon(item.collapsed)}</button>
         <button class="item-del-btn" data-act="removeItem" data-args='["${compKey}","${blockId}",${idx}]'>✕</button>
       </div>
-      ${item.collapsed ? '' : tileTabsHTML(compKey, blockId, idx, item)}
+      ${item.collapsed ? '' : `
+      <input type="text" placeholder="Заголовок (опц.)" maxlength="120" value="${escAttr(item.title || '')}" data-act="updateItemField" data-args='["${compKey}","${blockId}",${idx},"title","$value"]'>
+      ${tileTabsHTML(compKey, blockId, idx, item)}`}
     </div>`;
 }
 export function setActiveTile(compKey, blockId, itemIdx, tileIdx) {
@@ -444,10 +465,13 @@ export function blockEditorHTML(compKey, block) {
       </div>
       <div class="block-body">
         ${items}
-        <div class="item-add-row">
-          <button class="add-item-btn" data-act="addItem" data-args='["${compKey}","${block.id}","news"]'>Новость +</button>
-          <button class="add-item-btn" data-act="addItem" data-args='["${compKey}","${block.id}","metric"]'>Метрика +</button>
-          <button class="add-item-btn" data-act="addItem" data-args='["${compKey}","${block.id}","tops"]'>Топ +</button>
+        <div class="add-block-wrap">
+          <div class="add-block-trigger" data-act="toggleItemAddMenu" data-args='["${block.id}"]'>Добавить новый блок <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+          <div class="add-block-menu item-add-menu" data-itemaddmenu="${block.id}">
+            <div class="add-menu-item" data-act="addItem" data-args='["${compKey}","${block.id}","news"]'>Новость +</div>
+            <div class="add-menu-item" data-act="addItem" data-args='["${compKey}","${block.id}","metric"]'>Метрика +</div>
+            <div class="add-menu-item" data-act="addItem" data-args='["${compKey}","${block.id}","tops"]'>Топ +</div>
+          </div>
         </div>
         <input type="text" class="comment-input" placeholder="Комментарий" value="${escAttr(block.comment || '')}" data-act="updateBlockField" data-args='["${compKey}","${block.id}","comment","$value"]'>
       </div>

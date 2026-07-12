@@ -162,7 +162,7 @@ export function createTopsColumn(title = "") {
   ] };
 }
 export function createTopsItem() {
-  return { kind: "tops", showRank: true, activeColIdx: 0, columns: [createTopsColumn()] };
+  return { kind: "tops", showRank: true, activeColIdx: 0, columns: [createTopsColumn()], photos: [] };
 }
 function topsColumn(item, colIdx) {
   if (!item.columns || !item.columns.length) item.columns = [createTopsColumn()];

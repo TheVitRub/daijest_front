@@ -110,6 +110,7 @@ input[type=file] { font-size: 12px; }
   user-select: none;
 }
 .letter-title { font-weight: 600; font-size: 14px; color: #1a1a1a; }
+.letter-head-actions { display: flex; align-items: center; gap: 8px; }
 .letter-body { padding: 0 14px 14px 14px; }
 .letter-section.collapsed .letter-body { display: none; }
 
@@ -211,7 +212,7 @@ input[type=file] { font-size: 12px; }
 
 /* === Items === */
 .item-block {
-  background: #fff;
+  background: #f8f9fb;
   border: 1px solid #e4e6eb;
   border-radius: 8px;
   padding: 10px;
@@ -220,7 +221,35 @@ input[type=file] { font-size: 12px; }
   flex-direction: column;
   gap: 6px;
 }
-.item-block-metric { background: #f8f9fb; }
+/* Tops (rankings) — editor */
+.tops-edit-rows { display: flex; flex-direction: column; gap: 6px; }
+/* Name input, value input and delete are three identical direct flex children,
+   so they align perfectly. The rank overlays the name input's left padding. */
+.tops-edit-row { display: flex; align-items: center; gap: 6px; position: relative; }
+.tops-edit-row .tops-edit-rank {
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: center;
+  color: #b0b3b8;
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 1;
+  box-sizing: border-box;
+}
+.tops-edit-row .tops-edit-rank:focus { outline: none; color: #1877f2; }
+.tops-edit-row .tops-edit-nameinput { flex: 1; min-width: 0; height: 36px; box-sizing: border-box; padding-left: 34px; line-height: 18px; }
+.tops-edit-value { flex: 0 0 96px; height: 36px; box-sizing: border-box; line-height: 18px; }
+.tops-edit-row .tops-edit-del { height: 36px; box-sizing: border-box; }
+.tops-edit-actions { display: flex; gap: 6px; margin-top: 6px; }
+.tops-edit-actions .add-item-btn { flex: 1; }
+.tops-del-col { color: #c0392b; border-color: #e6b0aa; }
+.tops-del-col:hover { background: #fdecea; }
 .metrics-group-card.insert-before { border-top: 2px solid #1877f2; }
 .metrics-group-card.insert-after  { border-bottom: 2px solid #1877f2; }
 .metrics-group-card {
@@ -233,7 +262,8 @@ input[type=file] { font-size: 12px; }
 .metric-tile-sep { border-top: 1px solid #e4e6eb; margin: 8px 0; }
 .metric-tile-row { display: flex; gap: 8px; align-items: stretch; }
 .metric-tile-fields { flex: 1; min-width: 0; }
-.metric-tile-del {
+.metric-tile-del,
+.tops-edit-del {
   flex: 0 0 44px;
   border: 1px solid #d0d4d9;
   border-radius: 8px;
@@ -246,7 +276,8 @@ input[type=file] { font-size: 12px; }
   justify-content: center;
   transition: color .15s, border-color .15s;
 }
-.metric-tile-del:hover { color: #c0392b; border-color: #c0392b; }
+.metric-tile-del:hover,
+.tops-edit-del:hover { color: #c0392b; border-color: #c0392b; }
 .add-tile-btn { width: 100%; margin-top: 8px; padding: 10px 12px; background: none; border: 1px dashed #c0c4cc; border-radius: 8px; color: #65676b; font-size: 14px; cursor: pointer; }
 .add-tile-btn:hover { background: #f0f2f5; }
 .tile-tabs { display: flex; gap: 6px; margin-bottom: 6px; }
@@ -894,6 +925,90 @@ input[type=file] { font-size: 12px; }
 .kpi-grid { padding-bottom: 16px; }
 .kpi-grid:first-child { padding-top: 0; }
 .kpi-grid:last-child { padding-bottom: 0; }
+/* Tops (rankings) — preview. .tops-block is a transparent item wrapper, so it
+   gets the same coloured separator line as news/metric (a white border on the
+   coloured page); .tops-card is the actual white card holding the content.
+   padding-bottom keeps the card off the next item's separator line (matched by
+   the 16px padding-top the separator rule adds above it). */
+.tops-block { padding-bottom: 16px; }
+.tops-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+.tops-title {
+  background: #383838;
+  color: #fff;
+  text-align: center;
+  font-family: "OfficinaBold", "Helvetica Neue", Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-bottom: 0;
+}
+/* Shared title spanning all columns (used when only one column has a title). */
+.tops-title--full { margin-bottom: 12px; }
+.tops-grid { display: grid; column-gap: 16px; row-gap: 0; align-items: start; }
+.tops-grid.cols-1 { grid-template-columns: 1fr; }
+.tops-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.tops-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.tops-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.tops-col-rows { display: flex; flex-direction: column; gap: 10px; }
+.tops-row { display: flex; align-items: stretch; gap: 10px; }
+.tops-name-cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+.tops-rank {
+  flex-shrink: 0;
+  min-width: 22px;
+  text-align: center;
+  color: #b0b3b8;
+  font-family: "OfficinaBold", "Helvetica Neue", Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+.tops-name {
+  color: #1a1a1a;
+  font-family: "IBMPlex", sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.tops-value {
+  flex-shrink: 0;
+  min-width: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: #1a1a1a;
+  font-family: "OfficinaBold", "Helvetica Neue", Arial, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+}
+/* 3-column layout is tight: shrink type and the value box so names fit. */
+.tops-grid.cols-3 .tops-title { font-size: 19px; padding: 12px 12px; }
+.tops-grid.cols-3 .tops-name-cell { padding: 12px 14px; gap: 10px; }
+.tops-grid.cols-3 .tops-rank { font-size: 21px; min-width: 18px; }
+.tops-grid.cols-3 .tops-name { font-size: 15px; }
+.tops-grid.cols-3 .tops-value { min-width: 58px; padding: 12px 12px; font-size: 22px; }
+.tops-grid.cols-2 .tops-title { font-size: 22px; }
 .ach-item {
   background: #fff;
   border-radius: 10px;
@@ -1195,8 +1310,7 @@ h1 { color: #fff; }
 .drag-handle { color: #555; }
 
 /* Item blocks */
-.item-block { background: #303030; border-color: #3a3a3a; }
-.item-block-metric { background: #282828; }
+.item-block { background: #282828; border-color: #3a3a3a; }
 .item-del-btn { color: #666; }
 .item-del-btn:hover { color: #f05046; }
 .metric-label-tag { color: #888; }
@@ -1208,8 +1322,10 @@ h1 { color: #fff; }
 .tile-tab-add { background: none; border-color: #3a3a3a; color: #777; }
 .tile-tab-add:hover { background: #3d3d3d; color: #fff; }
 .metric-tile-sep { border-top-color: #383838; }
-.metric-tile-del { border-color: #3a3a3a; color: #777; }
-.metric-tile-del:hover { color: #f05046; border-color: #f05046; }
+.metric-tile-del,
+.tops-edit-del { border-color: #3a3a3a; color: #777; }
+.metric-tile-del:hover,
+.tops-edit-del:hover { color: #f05046; border-color: #f05046; }
 
 /* Dark scrollbars to match the interface */
 .projects-list-section, .editor, #editor, .admin-user-list, #preview {

@@ -8,7 +8,7 @@ import { getCompMeta, getBlockLabel, BLOCK_TYPES, imageSrc, photoSrc } from "../
 import { state, getBlock, getTiles } from "../state/state.js";
 import { render } from "../render.js";
 import { saveRemoteNow } from "../features/projects.js";
-import { findPageIndexForBlock, renderPreview } from "./preview.js";
+import { findPageIndexForBlock, findPageIndexForKind, renderPreview } from "./preview.js";
 import { uploadMedia } from "../api.js";
 
 export function autoGrow(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
@@ -185,7 +185,10 @@ export function letterEditorHTML() {
     <div class="letter-section ${l.collapsed ? 'collapsed' : ''}">
       <div class="letter-head" data-act="toggleLetterSection">
         <span class="letter-title">Обращение редакции</span>
-        <span>${collapseIcon(l.collapsed)}</span>
+        <span class="letter-head-actions">
+          <button class="item-del-btn" data-act="scrollToPreviewLetter" title="Перейти в превью"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+          ${collapseIcon(l.collapsed)}
+        </span>
       </div>
       <div class="letter-body">
         <label>Заголовок</label>
@@ -244,6 +247,7 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
       <div class="item-block" ${itemDragAttrs(compKey, blockId, idx)}>
         <div class="item-del-row">
           ${ITEM_DRAG_HANDLE}
+          <span class="metric-label-tag">Новость</span>
           <button class="item-del-btn" data-act="scrollToPreviewItem" data-args='["${blockId}",${idx}]' title="Перейти в превью"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
           <button class="item-del-btn" data-act="removeItem" data-args='["${compKey}","${blockId}",${idx}]'>✕</button>
         </div>
@@ -274,6 +278,42 @@ export function itemEditorHTML(compKey, blockId, item, idx) {
         }
       </div>`;
   }
+  if (item.kind === "tops") {
+    const columns = (item.columns && item.columns.length) ? item.columns : [{ title: "", rows: [] }];
+    const active = Math.min(item.activeColIdx || 0, columns.length - 1);
+    const col = columns[active] || { title: "", rows: [] };
+    const canAdd = columns.length < 3;
+    const canRemove = columns.length > 1;
+    const rowsHTML = (col.rows || []).map((row, ri) => {
+      const rkVal = (row.rank ?? '').toString().trim() || String(ri + 1);
+      return `
+      <div class="tops-edit-row">
+        <input type="text" class="tops-edit-rank" inputmode="numeric" maxlength="3" value="${escAttr(rkVal)}" data-act="updateTopRow" data-args='["${compKey}","${blockId}",${idx},${active},${ri},"rank","$value"]' aria-label="Номер">
+        <input type="text" class="tops-edit-nameinput" placeholder="Название" value="${escAttr(row.name || '')}" data-act="updateTopRow" data-args='["${compKey}","${blockId}",${idx},${active},${ri},"name","$value"]'>
+        <input type="text" class="tops-edit-value" placeholder="Значение" value="${escAttr(row.value || '')}" data-act="updateTopRow" data-args='["${compKey}","${blockId}",${idx},${active},${ri},"value","$value"]'>
+        <button class="tops-edit-del" data-act="removeTopRow" data-args='["${compKey}","${blockId}",${idx},${active},${ri}]' title="Удалить строку">✕</button>
+      </div>`;
+    }).join('');
+    return `
+      <div class="item-block item-block-tops" ${itemDragAttrs(compKey, blockId, idx)}>
+        <div class="item-del-row">
+          ${ITEM_DRAG_HANDLE}
+          <span class="metric-label-tag">Топ</span>
+          <button class="item-del-btn" data-act="scrollToPreviewItem" data-args='["${blockId}",${idx}]' title="Перейти в превью"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+          <button class="item-del-btn" data-act="removeItem" data-args='["${compKey}","${blockId}",${idx}]'>✕</button>
+        </div>
+        <div class="tile-tabs">
+          ${columns.map((_, ci) => `<button class="tile-tab-btn${ci === active ? ' active' : ''}" data-act="setActiveTopCol" data-args='["${compKey}","${blockId}",${idx},${ci}]' title="Колонка ${ci + 1}">${ci + 1}</button>`).join('')}
+          ${canAdd ? `<button class="tile-tab-btn tile-tab-add" data-act="addTopColumn" data-args='["${compKey}","${blockId}",${idx}]' title="Добавить колонку">+</button>` : ''}
+        </div>
+        <input type="text" placeholder="Заголовок колонки" maxlength="120" value="${escAttr(col.title || '')}" data-act="updateTopColTitle" data-args='["${compKey}","${blockId}",${idx},${active},"$value"]'>
+        <div class="tops-edit-rows">${rowsHTML}</div>
+        <div class="tops-edit-actions">
+          <button class="add-item-btn" data-act="addTopRow" data-args='["${compKey}","${blockId}",${idx},${active}]'>Строка +</button>
+          ${canRemove ? `<button class="add-item-btn tops-del-col" data-act="removeTopColumn" data-args='["${compKey}","${blockId}",${idx},${active}]' title="Удалить эту колонку">Удалить колонку</button>` : ''}
+        </div>
+      </div>`;
+  }
   return `
     <div class="item-block item-block-metric ${item.collapsed ? 'metric-collapsed' : ''}" ${itemDragAttrs(compKey, blockId, idx)}>
       <div class="item-del-row">
@@ -290,6 +330,15 @@ export function setActiveTile(compKey, blockId, itemIdx, tileIdx) {
   const b = getBlock(compKey, blockId);
   if (!b || !b.items[itemIdx]) return;
   b.items[itemIdx].activeTileIdx = tileIdx;
+  const editorEl = document.getElementById("editor");
+  const savedScroll = editorEl ? editorEl.scrollTop : 0;
+  renderEditor();
+  if (editorEl) editorEl.scrollTop = savedScroll;
+}
+export function setActiveTopCol(compKey, blockId, itemIdx, colIdx) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[itemIdx]) return;
+  b.items[itemIdx].activeColIdx = colIdx;
   const editorEl = document.getElementById("editor");
   const savedScroll = editorEl ? editorEl.scrollTop : 0;
   renderEditor();
@@ -348,6 +397,17 @@ export function scrollToPreviewItem(blockId, idx) {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
+export function scrollToPreviewLetter() {
+  const pageIdx = findPageIndexForKind("letter");
+  if (pageIdx >= 0 && pageIdx !== g.previewPage) {
+    g.previewPage = pageIdx;
+    renderPreview();
+  }
+  requestAnimationFrame(() => {
+    const el = document.querySelector(".page.letter");
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
 export function clearNewsMetric(compKey, blockId, idx) {
   const b = getBlock(compKey, blockId);
   if (!b || !b.items[idx]) return;
@@ -387,6 +447,7 @@ export function blockEditorHTML(compKey, block) {
         <div class="item-add-row">
           <button class="add-item-btn" data-act="addItem" data-args='["${compKey}","${block.id}","news"]'>Новость +</button>
           <button class="add-item-btn" data-act="addItem" data-args='["${compKey}","${block.id}","metric"]'>Метрика +</button>
+          <button class="add-item-btn" data-act="addItem" data-args='["${compKey}","${block.id}","tops"]'>Топ +</button>
         </div>
         <input type="text" class="comment-input" placeholder="Комментарий" value="${escAttr(block.comment || '')}" data-act="updateBlockField" data-args='["${compKey}","${block.id}","comment","$value"]'>
       </div>

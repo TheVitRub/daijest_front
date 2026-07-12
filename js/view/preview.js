@@ -50,6 +50,48 @@ export function metricGridHTML(tiles, refId) {
     </div>`;
 }
 
+// A tops item renders as a titled ranking with 1..3 independent columns.
+// Column count is data-driven (item.columns.length), so preview already
+// supports multi-column even before the editor can add columns.
+export function topsHTML(item, refId) {
+  const columns = (item.columns || []).filter(c => c && c.rows);
+  if (!columns.length) return "";
+  const nCols = Math.min(Math.max(columns.length, 1), 3);
+  const showRank = item.showRank !== false;
+  const ref = refId ? ` data-item-ref="${refId}"` : '';
+  // When exactly one column carries a title, it spans the full width above all
+  // columns (shared header); with two or more titles each keeps its own.
+  const titled = columns.filter(c => (c.title || '').trim());
+  const sharedTitle = titled.length === 1 ? titled[0].title : null;
+
+  const rowsHTML = (col) => (col.rows || []).map((row, i) => {
+    // Manual rank overrides the auto position number; blank falls back to i+1.
+    const rk = (row.rank ?? '').toString().trim() || String(i + 1);
+    return `
+    <div class="tops-row">
+      <div class="tops-name-cell">
+        ${showRank ? `<span class="tops-rank">${escText(rk)}</span>` : ''}
+        <span class="tops-name">${escText(row.name || '')}</span>
+      </div>
+      <div class="tops-value">${escText(row.value || '')}</div>
+    </div>`;
+  }).join('');
+
+  const colsHTML = columns.map(col => `
+    <div class="tops-col">
+      ${sharedTitle === null && col.title ? `<div class="tops-title">${escText(col.title)}</div>` : ''}
+      <div class="tops-col-rows">${rowsHTML(col)}</div>
+    </div>`).join('');
+
+  return `
+    <div class="tops-block"${ref}>
+      <div class="tops-card">
+        ${sharedTitle !== null ? `<div class="tops-title tops-title--full">${escText(sharedTitle)}</div>` : ''}
+        <div class="tops-grid cols-${nCols}">${colsHTML}</div>
+      </div>
+    </div>`;
+}
+
 export function newsItemHTML(it, refId) {
   // Only photos that resolve to a real src render — this drops in-flight upload
   // placeholders (which have no mediaId yet) so the grid doesn't show gaps.
@@ -112,6 +154,9 @@ export function pageBlock(compKey, block) {
     if (it.kind === 'metric') {
       return metricGridHTML(getTiles(it), refId);
     }
+    if (it.kind === 'tops') {
+      return topsHTML(it, refId);
+    }
     return newsItemHTML(it, refId);
   }).join('');
 
@@ -166,6 +211,10 @@ export function buildPageList() {
 // Page index that contains a given block (for "go to preview"); -1 if not found.
 export function findPageIndexForBlock(blockId) {
   return buildPageDescriptors().findIndex(d => d.kind === "block" && d.blockId === blockId);
+}
+// Page index for a page kind ("letter", "cover", …); -1 if not present.
+export function findPageIndexForKind(kind) {
+  return buildPageDescriptors().findIndex(d => d.kind === kind);
 }
 
 function clampPreviewPage(total) {

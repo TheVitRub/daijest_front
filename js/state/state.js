@@ -96,8 +96,9 @@ export function moveBlock(compKey, blockId, dir) {
 export function addItem(compKey, blockId, kind) {
   const b = getBlock(compKey, blockId);
   if (!b) return;
-  if (kind === "news") b.items.push({ kind: "news", title: "", text: "", photos: [], photoLayout: "bottom", photoRatio: "4/3" });
-  else                 b.items.push({ kind: "metric", tiles: [{ value: "", label: "", delta: "", direction: "up" }] });
+  if (kind === "news")      b.items.push({ kind: "news", title: "", text: "", photos: [], photoLayout: "bottom", photoRatio: "4/3" });
+  else if (kind === "tops") b.items.push(createTopsItem());
+  else                      b.items.push({ kind: "metric", tiles: [{ value: "", label: "", delta: "", direction: "up" }] });
   render();
 }
 export function removeItem(compKey, blockId, idx) {
@@ -145,5 +146,70 @@ export function removeMetricTile(compKey, blockId, itemIdx, tileIdx) {
   b.items[itemIdx].tiles.splice(tileIdx, 1);
   const len = b.items[itemIdx].tiles.length;
   if (len > 0) b.items[itemIdx].activeTileIdx = Math.min(b.items[itemIdx].activeTileIdx || 0, len - 1);
+  render();
+}
+
+// ----- tops -----
+// A tops item is a ranking of 1..3 INDEPENDENT columns; each column has its own
+// title and its own ordered list of { name, value } rows. showRank/activeColIdx
+// live on the item. setActiveTopCol lives in editor.js (needs renderEditor).
+export const MAX_TOPS_COLS = 3;
+export function createTopsColumn(title = "") {
+  return { title, rows: [
+    { name: "", value: "" },
+    { name: "", value: "" },
+    { name: "", value: "" },
+  ] };
+}
+export function createTopsItem() {
+  return { kind: "tops", showRank: true, activeColIdx: 0, columns: [createTopsColumn()] };
+}
+function topsColumn(item, colIdx) {
+  if (!item.columns || !item.columns.length) item.columns = [createTopsColumn()];
+  return item.columns[colIdx] || item.columns[0];
+}
+export function updateTopColTitle(compKey, blockId, idx, colIdx, value) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[idx]) return;
+  topsColumn(b.items[idx], colIdx).title = value;
+  debouncedRenderAndSave();
+}
+export function updateTopRow(compKey, blockId, idx, colIdx, rowIdx, field, value) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[idx]) return;
+  const col = topsColumn(b.items[idx], colIdx);
+  if (!col.rows[rowIdx]) return;
+  col.rows[rowIdx][field] = value;
+  debouncedRenderAndSave();
+}
+export function addTopRow(compKey, blockId, idx, colIdx) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[idx]) return;
+  topsColumn(b.items[idx], colIdx).rows.push({ name: "", value: "" });
+  render();
+}
+export function removeTopRow(compKey, blockId, idx, colIdx, rowIdx) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[idx]) return;
+  topsColumn(b.items[idx], colIdx).rows.splice(rowIdx, 1);
+  render();
+}
+export function addTopColumn(compKey, blockId, idx) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[idx]) return;
+  const item = b.items[idx];
+  if (!item.columns) item.columns = [];
+  if (item.columns.length >= MAX_TOPS_COLS) return;
+  item.columns.push(createTopsColumn());
+  item.activeColIdx = item.columns.length - 1;
+  render();
+}
+export function removeTopColumn(compKey, blockId, idx, colIdx) {
+  const b = getBlock(compKey, blockId);
+  if (!b || !b.items[idx]) return;
+  const item = b.items[idx];
+  if (!item.columns || item.columns.length <= 1) return;
+  item.columns.splice(colIdx, 1);
+  item.activeColIdx = Math.min(item.activeColIdx || 0, item.columns.length - 1);
   render();
 }

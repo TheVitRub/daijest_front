@@ -12,10 +12,13 @@ let authScaleResizeBound = false;
 
 function syncAuthScale(el) {
   if (!el) return;
-  const fitScale = Math.max(window.innerWidth / 2500, window.innerHeight / 1350);
-  const readableMin = window.innerWidth >= 1024 ? 0.72 : window.innerWidth >= 768 ? 0.62 : fitScale;
-  const footerSafeMax = Math.max(0.48, (window.innerHeight / 2 - 20) / 647);
-  const scale = Math.min(Math.max(fitScale, readableMin), footerSafeMax);
+  // The whole screen (background grid + cards) is one 2500x1350 composition that
+  // scales as a single unit, so the cards always stay nested in the grid's gaps.
+  // "contain" fit (min, not max) guarantees the entire composition is visible —
+  // nothing is cropped at the edges — at the cost of being proportionally
+  // smaller than a "cover" fit on viewports whose aspect ratio differs from the
+  // composition's.
+  const scale = Math.min(window.innerWidth / 2500, window.innerHeight / 1350);
   el.style.setProperty("--auth-scale", String(scale));
 }
 

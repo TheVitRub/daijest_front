@@ -47,7 +47,15 @@ export async function loadRemoteDigests(createIfEmpty) {
   const known = g.remoteDigests.some(d => d.id === g.currentDigestId);
   if (!known) g.currentDigestId = g.remoteDigests[0]?.id || "";
   if (!g.currentDigestId && createIfEmpty) {
+    // Новый профиль не должен наследовать локальный черновик предыдущего пользователя.
+    resetStateToInitial();
+    g.previewPage = 0;
     g.currentProjectTitle = "Новый проект";
+    g.currentDigestType = "analytical";
+    g.lastRemoteSnapshot = "";
+    g.lastRemoteTitle = "";
+    g.projectDirty = false;
+    saveLocalDraft();
     await createRemoteDigest("created");
     return;
   }

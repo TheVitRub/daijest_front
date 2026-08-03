@@ -23,6 +23,7 @@ This is the frontend repository for Daijest. The app is served as static files b
 - API requests are built from `API_BASE` in `js/config.js`.
 - Production is served from the site root and uses `/api` for backend requests.
 - The frontend nginx proxies `/api/` and `/healthz` to the backend container.
+- Локальный черновик нельзя переносить между пользователями: при выходе он очищается, а пустой профиль создаётся из начального состояния.
 
 ## Server Verification
 

@@ -3,8 +3,9 @@
 // ============================================================
 import { g } from "../store.js";
 import { apiRequest } from "../api.js";
-import { AUTH_TOKEN_KEY, CURRENT_DIGEST_KEY, ADMIN_USERS_PAGE_SIZE } from "../config.js";
+import { AUTH_TOKEN_KEY, CURRENT_DIGEST_KEY, STORAGE_KEY, ADMIN_USERS_PAGE_SIZE } from "../config.js";
 import { safeStorageSet, safeStorageRemove } from "../storage.js";
+import { resetStateToInitial } from "../state/state.js";
 import { loadRemoteDigests } from "./projects.js";
 import { renderAuthScreen, renderAccountBar } from "../view/account.js";
 import { renderShellState, setSaveStatus } from "../view/status.js";
@@ -12,6 +13,7 @@ import { renderShellState, setSaveStatus } from "../view/status.js";
 export function setAuthSession(data) {
   g.authToken = data.token || "";
   g.currentUser = data.user || null;
+  g.authDraft = { email: "", name: "", password: "", confirm: "", code: "" };
   g.authError = "";
   if (g.authToken) safeStorageSet(AUTH_TOKEN_KEY, g.authToken);
   renderAuthScreen();
@@ -130,9 +132,14 @@ export function logoutAccount() {
   g.companyImportTargetKey = "";
   g.pendingCompanyImport = null;
   g.revisionPreview = null;
+  g.previewPage = 0;
+  g.authMode = "code";
+  g.authDraft = { email: "", name: "", password: "", confirm: "", code: "" };
   clearTimeout(g.remoteSaveTimer);
+  resetStateToInitial();
   safeStorageRemove(AUTH_TOKEN_KEY);
   safeStorageRemove(CURRENT_DIGEST_KEY);
+  safeStorageRemove(STORAGE_KEY);
   renderAuthScreen();
   renderAccountBar();
   renderShellState();

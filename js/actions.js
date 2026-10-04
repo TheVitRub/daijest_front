@@ -15,8 +15,10 @@ import * as dnd from "./dnd.js";
 import * as editor from "./view/editor.js";
 import * as account from "./view/account.js";
 import * as preview from "./view/preview.js";
+import * as metricsExcel from "./features/metrics-excel.js";
+import * as mediaDownload from "./features/media-download.js";
 
 export const fns = Object.assign(
   Object.create(null),
-  stateMod, historyMod, auth, projects, admin, impexp, media, dnd, editor, account, preview,
+  stateMod, historyMod, auth, projects, admin, impexp, media, dnd, editor, account, preview, metricsExcel, mediaDownload,
 );

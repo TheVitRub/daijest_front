@@ -8,20 +8,6 @@ import { formatProjectDate, currentVersion, projectById } from "../features/proj
 import { saveStatusClass, saveStatusSummary, renderShellState, setSaveStatus } from "./status.js";
 import { renderAdminSection, renderAdminEditModal } from "../features/admin.js";
 
-let authScaleResizeBound = false;
-
-function syncAuthScale(el) {
-  if (!el) return;
-  // The whole screen (background grid + cards) is one 2500x1350 composition that
-  // scales as a single unit, so the cards always stay nested in the grid's gaps.
-  // "contain" fit (min, not max) guarantees the entire composition is visible —
-  // nothing is cropped at the edges — at the cost of being proportionally
-  // smaller than a "cover" fit on viewports whose aspect ratio differs from the
-  // composition's.
-  const scale = Math.min(window.innerWidth / 2500, window.innerHeight / 1350);
-  el.style.setProperty("--auth-scale", String(scale));
-}
-
 export function renderAuthScreen() {
   const el = document.getElementById("authScreen");
   if (!el) return;
@@ -31,19 +17,19 @@ export function renderAuthScreen() {
     return;
   }
 
-  syncAuthScale(el);
-  if (!authScaleResizeBound) {
-    authScaleResizeBound = true;
-    window.addEventListener("resize", () => syncAuthScale(document.getElementById("authScreen")));
-  }
-
   el.innerHTML = `
-    <div class="auth-bg-grid" aria-hidden="true">
-      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    <div class="auth-bg-edges" aria-hidden="true">
+      <span class="auth-bg-far-left"></span><span class="auth-bg-far-right"></span>
+      <span class="auth-bg-right-top"></span><span class="auth-bg-right-bottom"></span>
     </div>
     <main class="auth-code-shell">
+      <div class="auth-bg-grid" aria-hidden="true">
+        <span class="auth-bg-left-top"></span><span class="auth-bg-left-middle"></span>
+        <span class="auth-bg-left-bottom"></span><span class="auth-bg-center-top"></span>
+        <span class="auth-bg-center-bottom"></span>
+      </div>
       <section class="auth-logo-card">
-        <div class="digest-logo" aria-label="Волков Дайджест">
+        <div class="digest-logo" role="img" aria-label="Волков Дайджест">
           <img class="digest-logo-wordmark" src="logos/digest-wordmark.svg" alt="">
           <img class="digest-logo-badge" src="logos/digest-volkov-badge.svg" alt="">
         </div>
@@ -60,8 +46,8 @@ export function renderAuthScreen() {
           </div>
         </form>
       </section>
-      <p class="auth-beta-note">Сервис находится в бете. Ошибки - это нормально</p>
-    </main>`;
+    </main>
+    <p class="auth-beta-note">Сервис находится в бете. Ошибки - это нормально</p>`;
 }
 
 export function digestTypeLabel(type) {
@@ -180,12 +166,28 @@ export function renderConfirmDialog() {
       <div class="confirm-dialog">
         <h3>${escText(g.confirmDialog.title || "Подтвердите действие")}</h3>
         <p>${escText(g.confirmDialog.message || "")}</p>
+        ${g.confirmDialog.metricPreview ? renderMetricImportPreview(g.confirmDialog.metricPreview) : ''}
+        ${g.confirmDialog.contentDeletion ? `<label class="content-delete-preference">
+          <input type="checkbox" data-act="setSkipContentDeletion" data-args='["$checked"]' ${g.confirmDialog.skipContentDeletion ? 'checked' : ''}>
+          <span>Больше не спрашивать до конца текущей сессии</span>
+        </label>` : ''}
         <div class="confirm-actions">
           <button type="button" data-act="closeConfirmDialog">Отмена</button>
           ${actionButtons}
         </div>
       </div>
     </div>`;
+}
+
+function renderMetricImportPreview(data) {
+  const ratings = { up: 'Рост — хорошо', 'up-bad': 'Рост — плохо', 'down-good': 'Снижение — хорошо', down: 'Снижение — плохо', none: 'Нейтрально' };
+  return `<div class="metric-import-preview">
+    <strong>Заголовок из файла: ${escText(data.title || 'Без заголовка')}</strong>
+    <div class="metric-import-table-wrap"><table class="metric-import-table">
+      <thead><tr><th>Значение</th><th>Подпись</th><th>Динамика</th><th>Оценка</th></tr></thead>
+      <tbody>${data.tiles.map(tile => `<tr><td>${escText(tile.value)}</td><td>${escText(tile.label)}</td><td>${escText(tile.delta)}</td><td>${escText(ratings[tile.direction])}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
 }
 
 export function renderNewProjectDialog() {

@@ -15,12 +15,20 @@ export const AUTOSAVE_DELAY_MS = 5000;
 export const HISTORY_LIMIT = 60;
 export const ADMIN_USERS_PAGE_SIZE = 50;
 
+export const LETTER_PLACEHOLDERS = {
+  title: "Заголовок",
+  paragraphs: "Текст (каждый абзац — с новой строки)",
+  signature: "Подпись",
+};
+
 export const COMPANIES = [
   { key: "volkov_z",  name: "Волков (Заринск)",         theme: "volkov",  color: "#f4a93d" },
   { key: "volkov_k",  name: "Волков (Кемерово)",         theme: "kalina",  color: "#d63031" },
   { key: "broiler",   name: "Кузбасский Бройлер (КУБ)", theme: "broiler", color: "#6fa86b" },
   { key: "retail",    name: "Розничная сеть (ФРС)",      theme: "tochka",  color: "#E51C4C" },
-  { key: "vg",        name: "Волков групп",              theme: "zarinsk", color: "#c0392b" }
+  { key: "vg",        name: "Волков групп",              theme: "zarinsk", color: "#c0392b" },
+  { key: "volkov_kr", name: "Волков (Красноярск)",        theme: "krasnoyarsk", color: "#f28c28" },
+  { key: "amp",       name: "АМП",                       theme: "amp", color: "#40648c", singlePage: true }
 ];
 
 export const BLOCK_TYPES = [
@@ -28,11 +36,12 @@ export const BLOCK_TYPES = [
   { key: "products",     label: "Продукты" },
   { key: "people",       label: "О людях" },
   { key: "publicity",    label: "Публичность" },
-  { key: "achievements", label: "Есть чем гордиться" }
+  { key: "achievements", label: "Есть чем гордиться" },
+  { key: "happy_job",    label: "Happy Job" }
 ];
 
 export function getCompMeta(key) { return COMPANIES.find(c => c.key === key) || COMPANIES[0]; }
-export function getBlockLabel(key) { return (BLOCK_TYPES.find(t => t.key === key) || {}).label || key; }
+export function getBlockLabel(key) { return key === 'amp' ? 'АМП' : (BLOCK_TYPES.find(t => t.key === key) || {}).label || key; }
 
 // Build the URL the browser uses to load a stored image by its media id.
 export function mediaUrl(id) { return `${API_BASE}/media/${id}`; }

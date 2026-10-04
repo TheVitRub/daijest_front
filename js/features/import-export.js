@@ -5,6 +5,8 @@ import { g } from "../store.js";
 import { apiRequest } from "../api.js";
 import { getCompMeta } from "../config.js";
 import { state, getComp, loadState, captureState, createBlockId, projectTitle } from "../state/state.js";
+import { normalizeHappyJobBlock } from "../state/happy-job.js";
+import { AMP_COMPANY_KEY, normalizeAmpPages } from "../state/amp.js";
 import { importedState, saveLocalDraft } from "../storage.js";
 import { rememberSnapshot } from "../state/history.js";
 import { render, afterStateChanged } from "../render.js";
@@ -19,7 +21,7 @@ export function cloneJSON(value) {
   return JSON.parse(JSON.stringify(value));
 }
 export function cloneBlocksWithFreshIds(blocks) {
-  return cloneJSON(blocks).map(block => Object.assign({}, block, { id: createBlockId() }));
+  return cloneJSON(blocks).map(block => normalizeHappyJobBlock({ ...block, id: createBlockId() }));
 }
 export function showCompanyImportError(message) {
   const text = message || "Не удалось импортировать JSON компании.";
@@ -90,7 +92,9 @@ export function applyCompanyImport(mode) {
     return;
   }
   const nextBlocks = cloneBlocksWithFreshIds(g.pendingCompanyImport.blocks || []);
-  if (mode === "replace") comp.blocks = nextBlocks;
+  if (targetKey === AMP_COMPANY_KEY) {
+    comp.blocks = normalizeAmpPages(mode === 'replace' ? nextBlocks : [...comp.blocks, ...nextBlocks]);
+  } else if (mode === "replace") comp.blocks = nextBlocks;
   else comp.blocks.push(...nextBlocks);
   comp.collapsed = false;
   g.pendingCompanyImport = null;

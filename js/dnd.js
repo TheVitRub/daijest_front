@@ -3,6 +3,7 @@
 // ============================================================
 import { getComp, getBlock } from "./state/state.js";
 import { render } from "./render.js";
+import { HAPPY_JOB_TYPE } from "./state/happy-job.js";
 
 let dragSrcCompKey = null;
 let dragSrcBlockId = null;
@@ -59,6 +60,7 @@ export function clearItemDragOver() {
   document.querySelectorAll('.item-block, .metrics-group-card').forEach(el => el.classList.remove('insert-before', 'insert-after'));
 }
 export function onItemDragStart(e, compKey, blockId, idx) {
+  if (getBlock(compKey, blockId)?.type === HAPPY_JOB_TYPE) { e.preventDefault(); return; }
   dragSrcItemCompKey = compKey;
   dragSrcItemBlockId = blockId;
   dragSrcItemIdx     = idx;
@@ -71,6 +73,7 @@ export function onItemDragEnd(e) {
   clearItemDragOver();
 }
 export function onItemDragOver(e, compKey, blockId, idx) {
+  if (getBlock(compKey, blockId)?.type === HAPPY_JOB_TYPE) return;
   e.preventDefault(); e.stopPropagation();
   clearItemDragOver();
   const rect = e.delegateTarget.getBoundingClientRect();
@@ -82,6 +85,7 @@ export function onItemDrop(e, compKey, blockId, idx) {
   clearItemDragOver();
   if (dragSrcItemCompKey !== compKey || dragSrcItemBlockId !== blockId) return;
   if (dragSrcItemIdx === null) return;
+  if (getBlock(compKey, blockId)?.type === HAPPY_JOB_TYPE) return;
   let targetIdx = dragInsertBefore ? idx : idx + 1;
   if (dragSrcItemIdx === targetIdx || dragSrcItemIdx + 1 === targetIdx) return;
   const b = getBlock(compKey, blockId);

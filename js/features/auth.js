@@ -2,6 +2,7 @@
 //   AUTH — session, login-form submit, logout, bootstrap
 // ============================================================
 import { g } from "../store.js";
+import { resetContentDeletePreference } from "./delete-preference.js";
 import { apiRequest } from "../api.js";
 import { AUTH_TOKEN_KEY, CURRENT_DIGEST_KEY, ADMIN_USERS_PAGE_SIZE } from "../config.js";
 import { safeStorageSet, safeStorageRemove } from "../storage.js";
@@ -95,6 +96,7 @@ export async function loginAccount() {
   await submitAuthForm();
 }
 export function logoutAccount() {
+  resetContentDeletePreference();
   g.authToken = "";
   g.currentUser = null;
   g.currentDigestId = "";

@@ -8,6 +8,7 @@
 //   data-self                     (click) only fire when target === element
 //   data-counter / data-max       (input) update a char-counter element
 //   data-keydown='{"Enter":"fn"}' (keydown) key -> action name
+//   data-focusout="fnName" / data-fargs (blur) -> action with its own args
 import { fns } from "./actions.js";
 import { g } from "./store.js";
 
@@ -34,11 +35,11 @@ function resolveArgs(raw, el, event) {
   });
 }
 
-function run(name, el, event) {
+function run(name, el, event, rawArgs = el.dataset.args) {
   const fn = fns[name];
   if (typeof fn !== "function") { console.warn("delegation: unknown action", name); return; }
   event.delegateTarget = el; // matched element (e.currentTarget is the root under delegation)
-  fn(...resolveArgs(el.dataset.args, el, event));
+  fn(...resolveArgs(rawArgs, el, event));
 }
 
 function updateCounter(el) {
@@ -83,6 +84,12 @@ export function attachDelegatedEvents(root = document) {
     if (!(el instanceof Element)) return;
     if ("act" in el.dataset && usesChange(el)) run(el.dataset.act, el, e);
     if ("bind" in el.dataset && el.tagName === "SELECT") setPath(g, el.dataset.bind, el.value);
+  });
+
+  root.addEventListener("focusout", (e) => {
+    const el = e.target;
+    if (!(el instanceof Element) || !("focusout" in el.dataset)) return;
+    run(el.dataset.focusout, el, e, el.dataset.fargs);
   });
 
   root.addEventListener("submit", (e) => {

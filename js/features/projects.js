@@ -4,7 +4,9 @@
 import { g } from "../store.js";
 import { apiRequest } from "../api.js";
 import { AUTOSAVE_DELAY_MS, AUTOSAVE_ENABLED_KEY, CURRENT_DIGEST_KEY, getBlockLabel } from "../config.js";
-import { state, projectTitle, digestTitle, captureState, loadState, resetStateToInitial, removeBlock, getBlock } from "../state/state.js";
+import { state, projectTitle, digestTitle, captureState, loadState, resetStateToInitial, removeBlock, removeItem, getBlock } from "../state/state.js";
+import { HAPPY_JOB_TYPE } from "../state/happy-job.js";
+import { shouldSkipContentDeleteConfirm, rememberContentDeletePreference } from "./delete-preference.js";
 import { saveLocalDraft, safeStorageSet, safeStorageRemove } from "../storage.js";
 import { rememberSnapshot } from "../state/history.js";
 import { render } from "../render.js";
@@ -429,14 +431,49 @@ export function openConfirmDialog(config) {
 // Custom confirm for block deletion (replaces the old native confirm()).
 export function confirmRemoveBlock(compKey, blockId) {
   const block = getBlock(compKey, blockId);
+  if (!block || g.revisionPreview) return;
+  const projectId = g.currentDigestId;
+  const remove = () => {
+    if (g.currentDigestId === projectId && !g.revisionPreview && getBlock(compKey, blockId) === block) {
+      removeBlock(compKey, blockId);
+    }
+  };
+  if (shouldSkipContentDeleteConfirm()) { remove(); return; }
   const label = block ? getBlockLabel(block.type) : "блок";
   openConfirmDialog({
     title: `Удалить блок "${label}"?`,
-    message: "Блок и его содержимое будут удалены.",
+    message: "Блок и его содержимое будут удалены. Восстановление возможно только через отмену изменений или сохранённую версию, пока они доступны.",
     confirmText: "Удалить",
     danger: true,
-    onConfirm: () => removeBlock(compKey, blockId),
+    contentDeletion: true,
+    skipContentDeletion: false,
+    onConfirm: remove,
   });
+}
+export function confirmRemoveItem(compKey, blockId, idx) {
+  const block = getBlock(compKey, blockId);
+  const item = block?.items[idx];
+  if (!item || g.revisionPreview || block.type === HAPPY_JOB_TYPE) return;
+  const projectId = g.currentDigestId;
+  const remove = () => {
+    if (g.currentDigestId !== projectId || g.revisionPreview || getBlock(compKey, blockId) !== block) return;
+    const currentIndex = block.items.indexOf(item);
+    if (currentIndex >= 0) removeItem(compKey, blockId, currentIndex);
+  };
+  if (shouldSkipContentDeleteConfirm()) { remove(); return; }
+  const label = { news: 'новость', tops: 'топ', metric: 'метрику' }[item.kind] || 'элемент';
+  openConfirmDialog({
+    title: `Удалить ${label}?`,
+    message: 'Элемент и его содержимое будут удалены. Восстановление возможно только через отмену изменений или сохранённую версию, пока они доступны.',
+    confirmText: 'Удалить',
+    danger: true,
+    contentDeletion: true,
+    skipContentDeletion: false,
+    onConfirm: remove,
+  });
+}
+export function setSkipContentDeletion(checked) {
+  if (g.confirmDialog?.contentDeletion) g.confirmDialog.skipContentDeletion = checked;
 }
 export function closeConfirmDialog() {
   if (g.confirmDialog?.clearPendingImport) {
@@ -453,6 +490,7 @@ export function closeConfirmDialog() {
 export async function acceptConfirmDialog() {
   const dialog = g.confirmDialog;
   if (!dialog || typeof dialog.onConfirm !== "function") return;
+  if (dialog.contentDeletion && dialog.skipContentDeletion) rememberContentDeletePreference();
   g.confirmDialog = null;
   renderAccountBar();
   await dialog.onConfirm();

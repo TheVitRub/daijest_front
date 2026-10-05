@@ -99,26 +99,41 @@ export async function inlineSvgImagesForExport(root) {
 // html2canvas does not support CSS `aspect-ratio` (cell sizing) or `object-fit`
 // (image cropping), so photo cells render mis-sized and stretched. The clone is
 // laid out by the real browser first, so we read each cell's true geometry and
-// bake it into explicit px sizes + a background-image (cover), which html2canvas
-// DOES render correctly. Measure everything before mutating to avoid reflow.
+// freeze the cell sizes and reproduce centered `cover` with an explicitly sized
+// and positioned <img>. html2canvas then draws the original image directly at
+// export scale; CSS backgrounds would first downsample it to the cell's CSS size.
+// Measure all grids before mutating to avoid repeated layout work.
 function bakePhotoCellsForExport(root) {
-  root.querySelectorAll('.pt-photos').forEach(grid => {
+  const layouts = Array.from(root.querySelectorAll('.pt-photos'), grid => {
     const cells = Array.from(grid.querySelectorAll('.pt-img'));
-    if (!cells.length) return;
-    const boxes = cells.map(c => c.getBoundingClientRect());
-    grid.style.gridTemplateColumns = boxes.map(b => b.width + 'px').join(' ');
+    return {
+      grid, cells,
+      boxes: cells.map(cell => cell.getBoundingClientRect()),
+      columns: getComputedStyle(grid).gridTemplateColumns,
+    };
+  });
+  layouts.forEach(({ grid, cells, boxes, columns }) => {
+    // Keep the browser's column count, including two-row side photo grids.
+    grid.style.gridTemplateColumns = columns;
     grid.style.alignItems = 'start';
     cells.forEach((cell, i) => {
       const img = cell.querySelector('img');
-      cell.style.width = boxes[i].width + 'px';
-      cell.style.height = boxes[i].height + 'px';
+      const { width, height } = boxes[i];
+      cell.style.width = width + 'px';
+      cell.style.height = height + 'px';
       cell.style.aspectRatio = 'auto';
-      if (img && img.src) {
-        cell.style.backgroundImage = `url("${img.src}")`;
-        cell.style.backgroundSize = 'cover';
-        cell.style.backgroundPosition = 'center';
-        cell.style.backgroundRepeat = 'no-repeat';
-        img.remove();
+      if (img && img.naturalWidth && img.naturalHeight) {
+        const fit = Math.max(width / img.naturalWidth, height / img.naturalHeight);
+        const imageWidth = img.naturalWidth * fit;
+        const imageHeight = img.naturalHeight * fit;
+        cell.style.position = 'relative';
+        img.style.position = 'absolute';
+        img.style.width = imageWidth + 'px';
+        img.style.height = imageHeight + 'px';
+        img.style.maxWidth = 'none';
+        img.style.maxHeight = 'none';
+        img.style.left = (width - imageWidth) / 2 + 'px';
+        img.style.top = (height - imageHeight) / 2 + 'px';
       }
     });
   });

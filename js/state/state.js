@@ -1,9 +1,11 @@
 // ============================================================
 //   STATE — the digest document + content mutations
 // ============================================================
-import { COMPANIES } from "../config.js";
+import { COMPANIES, imageSrc } from "../config.js";
 import { g } from "../store.js";
 import { render, debouncedRenderAndSave } from "../render.js";
+import { HAPPY_JOB_TYPE, HAPPY_JOB_SUMMARY, HAPPY_JOB_TABLE, createHappyJobItems, createHappyJobRow, normalizeHappyJobBlock } from "./happy-job.js";
+import { AMP_COMPANY_KEY, createAmpPage, normalizeAmpPages } from "./amp.js";
 
 export const state = {
   digestCover: "",
@@ -21,7 +23,20 @@ export const INITIAL_STATE_SNAPSHOT = JSON.stringify(state);
 export function loadState(data) {
   if (!data || typeof data !== 'object') return;
   if (typeof data.digestCover === 'string' || (data.digestCover && typeof data.digestCover === 'object')) state.digestCover = data.digestCover;
-  if (Array.isArray(data.companies)) state.companies = data.companies;
+  if (Array.isArray(data.companies)) {
+    state.companies = data.companies.map(comp => ({
+      ...comp, blocks: comp.key === AMP_COMPANY_KEY ? normalizeAmpPages(comp.blocks)
+        : (Array.isArray(comp.blocks) ? comp.blocks : []).map(normalizeHappyJobBlock),
+    }));
+    // Saved projects predate newly registered companies; keep their content
+    // and order, then add any missing company sections to the editor.
+    const existingKeys = new Set(state.companies.map(comp => comp.key));
+    for (const company of COMPANIES) {
+      if (!existingKeys.has(company.key)) {
+        state.companies.push({ key: company.key, collapsed: true, blocks: [] });
+      }
+    }
+  }
   if (data.letter && typeof data.letter === 'object') state.letter = data.letter;
 }
 export function resetStateToInitial() {
@@ -66,8 +81,16 @@ export function toggleCompany(compKey) {
 export function addBlock(compKey, blockType) {
   const comp = getComp(compKey);
   if (!comp) return;
+  if (compKey === AMP_COMPANY_KEY) {
+    if (comp.blocks.length || g.revisionPreview) return;
+    comp.blocks.push(createAmpPage(createBlockId()));
+    render();
+    return;
+  }
   const id = createBlockId();
-  comp.blocks.push({ id, type: blockType, collapsed: false, items: [{ kind: "news", title: "", text: "", photos: [], photoLayout: "bottom", photoRatio: "4/3" }], comment: "" });
+  const items = blockType === HAPPY_JOB_TYPE ? createHappyJobItems()
+    : [{ kind: "news", title: "", text: "", photos: [], photoLayout: "bottom", photoRatio: "4/3" }];
+  comp.blocks.push({ id, type: blockType, collapsed: false, items, comment: "" });
   const menu = document.querySelector(`[data-addmenu="${compKey}"]`);
   if (menu) menu.classList.remove("open");
   render();
@@ -95,7 +118,7 @@ export function moveBlock(compKey, blockId, dir) {
 // ----- item actions -----
 export function addItem(compKey, blockId, kind) {
   const b = getBlock(compKey, blockId);
-  if (!b) return;
+  if (!b || b.type === HAPPY_JOB_TYPE) return;
   if (kind === "news")      b.items.push({ kind: "news", title: "", text: "", photos: [], photoLayout: "bottom", photoRatio: "4/3" });
   else if (kind === "tops") b.items.push(createTopsItem());
   else                      b.items.push({ kind: "metric", tiles: [{ value: "", label: "", delta: "", direction: "up" }] });
@@ -103,25 +126,63 @@ export function addItem(compKey, blockId, kind) {
 }
 export function removeItem(compKey, blockId, idx) {
   const b = getBlock(compKey, blockId);
-  if (!b) return;
+  if (!b || b.type === HAPPY_JOB_TYPE) return;
   b.items.splice(idx, 1);
   render();
 }
 export function updateBlockField(compKey, blockId, field, value) {
   const b = getBlock(compKey, blockId);
   if (!b) return;
+  if (compKey === AMP_COMPANY_KEY && (g.revisionPreview || !['title', 'subtitle', 'comment'].includes(field))) return;
+  if (b.type === HAPPY_JOB_TYPE && field !== 'comment') return;
   b[field] = value;
   debouncedRenderAndSave();
 }
 export function updateItemField(compKey, blockId, idx, field, value) {
   const b = getBlock(compKey, blockId);
   if (!b || !b.items[idx]) return;
+  if (b.type === HAPPY_JOB_TYPE) {
+    if (g.revisionPreview) return;
+    const fields = b.items[idx].kind === HAPPY_JOB_SUMMARY
+      ? ['title', 'result', 'ideas', 'text']
+      : ['title', 'suggestionTitle', 'actionTitle', 'caption'];
+    if (!fields.includes(field)) return;
+  }
+  if (field === 'photoLayout' && b.items[idx].kind === 'news' && imageSrc(b.items[idx].qr)) return;
   b.items[idx][field] = value;
   debouncedRenderAndSave();
 }
 export function updateLetterField(field, value) {
   state.letter[field] = value;
   debouncedRenderAndSave();
+}
+
+// ----- Happy Job table rows (the two sections themselves are fixed) -----
+function happyJobTable(compKey, blockId) {
+  const block = getBlock(compKey, blockId);
+  return !g.revisionPreview && block?.type === HAPPY_JOB_TYPE
+    ? block.items.find(item => item.kind === HAPPY_JOB_TABLE) : null;
+}
+export function updateHappyJobRow(compKey, blockId, rowIdx, field, value) {
+  const table = happyJobTable(compKey, blockId);
+  if (!table?.rows[rowIdx] || !['suggestion', 'action'].includes(field)) return;
+  table.rows[rowIdx][field] = value;
+  debouncedRenderAndSave();
+}
+export function addHappyJobRow(compKey, blockId) {
+  const table = happyJobTable(compKey, blockId);
+  if (!table) return;
+  table.rows.push(createHappyJobRow());
+  table.activeRowIdx = table.rows.length - 1;
+  render();
+}
+export function removeHappyJobRow(compKey, blockId, rowIdx) {
+  const table = happyJobTable(compKey, blockId);
+  if (!table || !Number.isInteger(rowIdx) || rowIdx < 0 || rowIdx >= table.rows.length) return;
+  table.rows.splice(rowIdx, 1);
+  if (rowIdx < table.activeRowIdx) table.activeRowIdx -= 1;
+  table.activeRowIdx = Math.max(0, Math.min(table.activeRowIdx, table.rows.length - 1));
+  render();
 }
 
 // ----- metric tiles -----
